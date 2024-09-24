@@ -53,6 +53,17 @@ class Application(UI):
             with open(self.filename, 'a') as file:
                 np.savetxt(file, self.save_data_array, delimiter = ',', fmt = '%10.5f')
 
+    def run():
+        app = QApplication(sys.argv)
+        if len(sys.argv) > 1:
+            n_region = int(sys.argv[1])
+        else:
+            n_region = 5
+
+        window = Application(n_region=n_region, test_UI=True)
+        window.show()
+        app.exec()
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     if len(sys.argv) > 1:

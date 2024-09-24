@@ -1,0 +1,4 @@
+adafruit-circuitpython-mlx90640
+numpy
+matplotlib
+PySide6
