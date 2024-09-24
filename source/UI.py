@@ -2,7 +2,7 @@
 
 import os
 import numpy as np
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QComboBox, QCheckBox, QPushButton, QFileDialog, QPushButton
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QComboBox, QCheckBox, QPushButton, QFileDialog, QPushButton, QGridLayout
 from PySide6.QtGui import QFont
 from matplotlib import patches, use
 from matplotlib.ticker import MaxNLocator, FormatStrFormatter
@@ -13,12 +13,13 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 
 from source.temperature import Temperature
+from source.mass_flow_controller import MFC
 from source.pid_controller import PIDControl
 
 # ================== Set matplotlib style ==================
 from cycler import cycler
 
-colors=['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02']
+colors=['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']
 
 plt.rcParams['axes.prop_cycle'] = cycler(color = colors)
 
@@ -44,19 +45,19 @@ class UI(QWidget):
     def init_UI(self, n_region, test_UI = False):
 
         # Check if test mode is enabled
-        if not test_UI:
-            # Import MFC module only if not testing
-            from source.mass_flow_controller import MFC
+        if test_UI:
+            # Create thermal camera object for testing
+            self.thermal_cam = Temperature(test = True)
+            self.MFC = MFC(n_region, test_UI = True)
+
+        else:
 
             # Create MFC object
             self.MFC = MFC(n_region)
 
             # Create thermal camera object
             self.thermal_cam = Temperature.thermal_cam()
-
-        else:
-            # Create thermal camera object for testing
-            self.thermal_cam = Temperature(test = True)
+            
 
         # Create control objects
         self.pid = []
@@ -71,7 +72,7 @@ class UI(QWidget):
         self.n_region = n_region
         
         # Colors for plots
-        self.colors = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00']
+        self.colors_qualitative = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']
 
         # Name of the window                
         self.setWindowTitle("Active Cooling")
@@ -144,10 +145,10 @@ class UI(QWidget):
         self.save_checkbox = QCheckBox('Save mode', self)
 
         # Set save_mode boolean to False
-        self.save_mode = self.save_checkbox.isChecked()
+        self.save_mode = False
 
         # Connect checkbox to function
-        self.save_checkbox.toggled.connect(self.toggle_save_mode)
+        self.save_checkbox.checkStateChanged.connect(self.toggle_save_mode)
 
         # Add save file widgets to layout
         save_file_layout.addWidget(self.save_checkbox)
@@ -171,7 +172,7 @@ class UI(QWidget):
         self.mfc_temperature_checkbox = QCheckBox('Temperature control mode - MFCs adjust according to temperature setpoint', self)
 
         # Connect checkbox to function
-        self.mfc_temperature_checkbox.toggled.connect(self.toggle_mfc_temperature_edit)
+        self.mfc_temperature_checkbox.checkStateChanged.connect(self.toggle_mfc_temperature_edit)
         
         # Add checkbox to layout
         mfc_temperature_selector.addWidget(self.mfc_temperature_checkbox)
@@ -180,98 +181,14 @@ class UI(QWidget):
         self.layout.addLayout(mfc_temperature_selector)
         
         # Create a layout for MFC and temperature
-        temperature_mfc_edit_layout = QVBoxLayout()
-        self.layout.addLayout(temperature_mfc_edit_layout)
+        self.temperature_mfc_edit_layout = QVBoxLayout()
+        self.layout.addLayout(self.temperature_mfc_edit_layout)
+
+        # Maximum number of columns in the grid
+        self.n_columns_mfc_temperature_grid = 15
         
-        # ================== Set MFC section ==================
-        # Create layout for MFCs
-        mfc_edit_layout = QHBoxLayout()
-
-        # Add MFC section to temperature_mfc layout
-        temperature_mfc_edit_layout.addLayout(mfc_edit_layout)
-
-        # Create MFC input and display widgets
-        self.mfc_input = np.empty(self.n_region, dtype = QLineEdit)
-
-        # Create MFC display widgets
-        self.mfc_display = np.empty(self.n_region, dtype = QLineEdit)
-
-        # Create a QLineEdit widget
-        for i in range(n_region):
-
-            # Title of the MFC
-            title = QLabel(f"MFC {i}: ")
-            mfc_edit_layout.addWidget(title)
-
-            # Add entry line for the current MFC
-            line_mfc = QLineEdit()
-
-            # Add MFC entry to the array
-            self.mfc_input[i] = line_mfc
-            
-            # Connect MFC entry to mfc setter
-            self.mfc_input[i].returnPressed.connect(self.set_mfc)
-
-            # Add MFC widget to control layout
-            mfc_edit_layout.addWidget(self.mfc_input[i])
-
-            # Create a line widget to display entered text
-            mfcEdit = QLineEdit()
-            mfcEdit.setReadOnly(True)
-            mfcEdit.setEnabled(False)
-
-            # Set default value to 0
-            mfcEdit.setText('0')
-
-            # Add MFC display to the array
-            self.mfc_display[i] = mfcEdit
-
-            # Add MFC display to the layout
-            mfc_edit_layout.addWidget(self.mfc_display[i])
-
-        # ================== Set temperature section ==================
-        # Create layout for Temperatures
-        temperature_edit_layout = QHBoxLayout()
-
-        # Add temperature section to temperature_mfc layout
-        temperature_mfc_edit_layout.addLayout(temperature_edit_layout)
-        
-        # Create array for temperature setpoints
-        self.temperature_setpoint = np.repeat(-1, n_region)
-
-        # Create temperature input and display widgets
-        self.temperature_input = np.empty(n_region, dtype = QLineEdit) 
-        self.temperature_display = np.empty(n_region, dtype = QLineEdit)
-
-        # Create a QLineEdit widget for temperature setpoint
-        for i in range(n_region):
-
-            # Title of the temperature
-            title = QLabel(f"Temperature {i}: ")
-            temperature_edit_layout.addWidget(title)
-
-            # Add entry line for the current temperature
-            line_temperature = QLineEdit()
-
-            # Add temperature entry to the array
-            self.temperature_input[i] = line_temperature
-
-            # Connect temperature entry to temperature setter
-            self.temperature_input[i].returnPressed.connect(self.set_temperature)
-            
-            # Add temperature widget to control layout
-            temperature_edit_layout.addWidget(self.temperature_input[i])
-            
-            # Create a line widget to display entered text
-            self.temperature_input[i].setEnabled(False)
-
-            # Create a QTextEdit widget to display entered text
-            temperatureEdit = QLineEdit()
-            temperatureEdit.setReadOnly(True)
-            temperatureEdit.setEnabled(False)
-            temperatureEdit.setText('0')
-            self.temperature_display[i] = temperatureEdit
-            temperature_edit_layout.addWidget(self.temperature_display[i])
+        # By default, temperature control mode is disabled
+        self.create_mfc_section()
 
         # ================== Set region boundaries section ==================
 
@@ -517,14 +434,14 @@ class UI(QWidget):
         for i in range(n_region):
 
             # Create a rectangle for each region
-            self.patches.append(patches.Rectangle((self.region_boundaries[i][0] - .5,self.region_boundaries[i][2] - 0.5), width = self.region_boundaries[i][1] - self.region_boundaries[i][0] + 1, height = self.region_boundaries[i][3] - self.region_boundaries[i][2] + 1, linewidth = 2, edgecolor = self.colors[i], facecolor = 'none'))
+            self.patches.append(patches.Rectangle((self.region_boundaries[i][0] - .5,self.region_boundaries[i][2] - 0.5), width = self.region_boundaries[i][1] - self.region_boundaries[i][0] + 1, height = self.region_boundaries[i][3] - self.region_boundaries[i][2] + 1, linewidth = 2, edgecolor = self.colors_qualitative[i], facecolor = 'none'))
             
             # Add rectangles to figure
             self.temperature_image.axes.add_patch(self.patches[i])
 
             # Create a canvas for the figure
-            self.ax[0].plot(self.time_plot, self.flow_rate_plot[i, :], '.', color = self.colors[i])  # Plot new data
-            self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors[i], label = f'Region {i}')  # Plot new data
+            self.ax[0].plot(self.time_plot, self.flow_rate_plot[i, :], '.', color = self.colors_qualitative[i])  # Plot new data
+            self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors_qualitative[i], label = f'Region {i}')  # Plot new data
 
         # Place legend outside of the plot
         lines = self.ax[2].get_lines()
@@ -534,6 +451,7 @@ class UI(QWidget):
 
         # Create a canvas for the figure
         self.canvas = FigureCanvas(self.figure)
+        self.canvas.setMinimumHeight(250)
 
         # Add canvas to layout
         self.layout.addWidget(self.canvas)
@@ -546,6 +464,118 @@ class UI(QWidget):
         self.show()
 
     # ================== Functions ==================
+
+    def create_mfc_section(self):
+        '''Create MFC section'''
+        # Create layout for MFCs
+        mfc_edit_layout = QGridLayout()
+
+        # Add MFC section to temperature_mfc layout
+        self.temperature_mfc_edit_layout.addLayout(mfc_edit_layout)
+
+        # Create MFC input and display widgets
+        self.mfc_input = np.empty(self.n_region, dtype = QLineEdit)
+
+        # Create MFC display widgets
+        self.mfc_display = np.empty(self.n_region, dtype = QLineEdit)
+
+        # Start grid row, if passed the number of columns, start a new row
+        grid_row = 0
+        grid_column = 0
+
+        # Create a QLineEdit widget
+        for i in range(self.n_region):
+
+            # Title of the MFC
+            title = QLabel(f"MFC {i}: ")
+            mfc_edit_layout.addWidget(title, grid_row, grid_column)
+
+            # Add entry line for the current MFC
+            line_mfc = QLineEdit()
+
+            # Add MFC entry to the array
+            self.mfc_input[i] = line_mfc
+            
+            # Connect MFC entry to mfc setter
+            self.mfc_input[i].returnPressed.connect(self.set_mfc)
+
+            # Add MFC widget to control layout
+            mfc_edit_layout.addWidget(self.mfc_input[i], grid_row, grid_column + 1)
+
+            # Create a line widget to display entered text
+            mfcEdit = QLineEdit()
+            mfcEdit.setReadOnly(True)
+            mfcEdit.setEnabled(False)
+
+            # Set default value to 0
+            mfcEdit.setText('0')
+
+            # Add MFC display to the array
+            self.mfc_display[i] = mfcEdit
+
+            # Add MFC display to the layout
+            mfc_edit_layout.addWidget(self.mfc_display[i], grid_row, grid_column + 2)
+
+            grid_column += 3
+            
+            if grid_column >= self.n_columns_mfc_temperature_grid:
+                grid_row += 1
+                grid_column = 0
+
+    def create_temperature_section(self):
+        '''Create temperature section'''
+        # Create layout for Temperatures
+        temperature_edit_layout = QGridLayout()
+
+        # Add temperature section to temperature_mfc layout
+        self.temperature_mfc_edit_layout.addLayout(temperature_edit_layout)
+        
+        # Create array for temperature setpoints
+        self.temperature_setpoint = np.repeat(-1, self.n_region)
+
+        # Create temperature input and display widgets
+        self.temperature_input = np.empty(self.n_region, dtype = QLineEdit) 
+        self.temperature_display = np.empty(self.n_region, dtype = QLineEdit)
+
+        # restart grid row and column
+        grid_row = 0
+        grid_column = 0
+
+        # Create a QLineEdit widget for temperature setpoint
+        for i in range(self.n_region):
+
+            # Title of the temperature
+            title = QLabel(f"Temperature {i}: ")
+            temperature_edit_layout.addWidget(title, grid_row, grid_column)
+
+            # Add entry line for the current temperature
+            line_temperature = QLineEdit()
+
+            # Add temperature entry to the array
+            self.temperature_input[i] = line_temperature
+
+            # Connect temperature entry to temperature setter
+            self.temperature_input[i].returnPressed.connect(self.set_temperature)
+            
+            # Add temperature widget to control layout
+            temperature_edit_layout.addWidget(self.temperature_input[i], grid_row, grid_column + 1)
+            
+            # Create a line widget to display entered text
+            self.temperature_input[i].setEnabled(False)
+
+            # Create a QTextEdit widget to display entered text
+            temperatureEdit = QLineEdit()
+            temperatureEdit.setReadOnly(True)
+            temperatureEdit.setEnabled(False)
+            temperatureEdit.setText('---')
+            self.temperature_display[i] = temperatureEdit
+            temperature_edit_layout.addWidget(self.temperature_display[i], grid_row, grid_column + 2)
+
+            grid_column += 3
+
+            if grid_column >= self.n_columns_mfc_temperature_grid:
+                grid_row += 1
+                grid_column = 0
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''
@@ -576,43 +606,46 @@ class UI(QWidget):
         '''Temperature/MFC control mode. Called when toggled'''
 
         # If temperature control mode is enabled
-
         # Restart setpoints for MFCs and temperature
         self.MFC.flow_rate_setpoint = np.zeros(self.n_region)
         self.temperature_setpoint = np.repeat(None, self.n_region)
+        
         for i in range(self.n_region):
-
-            # Clear all inputs and displays
-            self.mfc_input[i].clear()
-            self.temperature_input[i].clear()
-            
-            self.mfc_display[i].setText("0")
-            self.temperature_display[i].setText("---")
             
             # Reset MFCs flow rate
             self.MFC.set_flow_rate(i, 0)
 
-            # If temperature control mode is enabled
-            if self.mfc_temperature_checkbox.isChecked():
+        self.clear_layout(self.temperature_mfc_edit_layout)
 
-                # Disable MFC input and enable temperature input
-                self.mfc_input[i].setEnabled(False)
-                self.temperature_input[i].setEnabled(True)
+        if self.mfc_temperature_checkbox.isChecked():
+            self.create_temperature_section()
+
+        else:
+            self.create_mfc_section()
+
+    def clear_layout(self, layout):
+        '''Function to delete all layouts from a parent layout'''
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            child_layout = item.layout()
             
-            # If temperature control mode is disabled
-            else:
-
-                # Enable MFC input and disable temperature input
-                self.mfc_input[i].setEnabled(True)
-                self.temperature_input[i].setEnabled(False)
-
+            # If the item is a widget, delete it
+            if widget is not None:
+                widget.deleteLater()
+            
+            # If the item is a layout, recursively clear it
+            elif child_layout is not None:
+                self.clear_layout(child_layout)
+            
+            # Delete the layout item itself
+        layout.removeItem(item)
 
     def toggle_save_mode(self):
         '''Save mode. Called when toggled'''
 
         # Set save mode if file exists and is valid
-        if os.path.exists(self.filename):
-            self.save_checkbox.setChecked(not self.save_checkbox.isChecked())
+        if len(self.filename) > 0:
             self.save_mode = self.save_checkbox.isChecked()
 
         # If file does not exist or is invalid, disable save mode and uncheck checkbox
@@ -799,12 +832,10 @@ class UI(QWidget):
             # Update time array
             self.time_plot = self.time_plot[1:]
             self.time_plot = np.append(self.time_plot, self.time)
-        
-            if not self.test_UI:
 
-                # Update flow rate array only if not in test_UI mode
-                self.flow_rate_plot = np.delete(self.flow_rate_plot, (0), axis = 1)
-                self.flow_rate_plot = np.append(self.flow_rate_plot, np.transpose([self.MFC.flow_rate]), axis = 1)
+            # Update flow rate array only if not in test_UI mode
+            self.flow_rate_plot = np.delete(self.flow_rate_plot, (0), axis = 1)
+            self.flow_rate_plot = np.append(self.flow_rate_plot, np.transpose([self.MFC.flow_rate]), axis = 1)
 
             # Update temperature on plot        
             self.temperature_plot = np.delete(self.temperature_plot, (0), axis = 1)
@@ -832,14 +863,15 @@ class UI(QWidget):
     def update_single_plot(self, i):
         '''Update plot information per region'''
 
-        self.ax[0].plot(self.time_plot, self.flow_rate_plot[i, :], '.', color = self.colors[i])
-        self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors[i])
+        self.ax[0].plot(self.time_plot, self.flow_rate_plot[i, :], '.', color = self.colors_qualitative[i])
+        self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors_qualitative[i])
 
         # Also update setpoint plots if temperature control mode is enabled
-        if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0:
+        # TODO: Add setpoint to figure
+        # if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0:
             
-            self.ax[0].plot(self.time_plot, np.repeat(self.MFC.flow_rate_setpoint[i], len(self.time_plot)), color = self.colors[i], alpha = 0.3)
-            self.ax[2].plot(self.time_plot, np.repeat(self.temperature_setpoint[i], len(self.time_plot)), color = self.colors[i], alpha = 0.3)
+        #     self.ax[0].plot(self.time_plot, np.repeat(self.MFC.flow_rate_setpoint[i], len(self.time_plot)), color = self.colors_qualitative[i], alpha = 0.3)
+        #     self.ax[2].plot(self.time_plot, np.repeat(self.temperature_setpoint[i], len(self.time_plot)), color = self.colors_qualitative[i], alpha = 0.3)
 
     def change_n_plot_points(self):
         '''Change number of points in the plot'''
@@ -854,8 +886,8 @@ class UI(QWidget):
             if new_n_plot_points > self.n_plot_points:
                     
                     # Create new time points
-                    first_time_point = self.time_plot[0] - self.time_step
-                    added_time_points = np.arange(first_time_point, first_time_point - self.time_step * (new_n_plot_points - self.n_plot_points), -self.time_step)
+                    first_time_point = self.time_plot[0] - new_n_plot_points * self.time_step
+                    added_time_points = np.linspace(first_time_point, self.time_plot[0], new_n_plot_points - self.n_plot_points)
 
                     # Flip the array to have the first time point first
                     added_time_points = np.flip(added_time_points)

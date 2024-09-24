@@ -1,4 +1,4 @@
-import config
+import source.config as config
 import RPi.GPIO as GPIO
 
 

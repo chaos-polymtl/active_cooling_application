@@ -38,7 +38,7 @@ class Application(UI):
         self.time = self.elapsed_timer.elapsed() / 1000
         
     def get_time_step(self):
-        self.time_step = self.time - self.elapsed_timer.elapsed() / 1000
+        self.time_step = self.elapsed_timer.elapsed() / 1000 - self.previous_time
         self.previous_time = self.time
         
     def save_data(self):
@@ -54,6 +54,8 @@ class Application(UI):
                 np.savetxt(file, self.save_data_array, delimiter = ',', fmt = '%10.5f')
 
     def run():
+        # TODO: Add a parser to get the number of regions from the command line
+        # TODO: Fix n_region
         app = QApplication(sys.argv)
         if len(sys.argv) > 1:
             n_region = int(sys.argv[1])
@@ -65,12 +67,4 @@ class Application(UI):
         app.exec()
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    if len(sys.argv) > 1:
-        n_region = int(sys.argv[1])
-    else:
-        n_region = 5
-
-    window = Application(n_region=n_region, test_UI=True)
-    window.show()
-    app.exec()
+    Application.run()
