@@ -1,0 +1,144 @@
+/* General settings */
+QWidget {
+    background-color: #f4f4f4;
+    color: #2e2e2e;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #4CAF50; /* Professional green */
+    color: white;
+    border: 1px solid #3e8e41;
+    padding: 8px 16px;
+    border-radius: 4px;
+}
+
+QPushButton:hover {
+    background-color: #45a049;
+}
+
+QPushButton:pressed {
+    background-color: #3e8e41;
+}
+
+/* Text fields */
+QLineEdit, QTextEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 6px;
+    border-radius: 4px;
+    color: #333333;
+}
+
+QLineEdit:focus, QTextEdit:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+/* Labels */
+QLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #2e2e2e;
+}
+
+/* ComboBox */
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 6px;
+    border-radius: 4px;
+}
+
+QComboBox::drop-down {
+    border: none;
+}
+
+/* ScrollBars */
+QScrollArea {
+    border: 1px solid #00539f;  /* NRC blue border */
+}
+
+QScrollBar:vertical {
+    border: none;
+    background-color: #f4f4f4; /* Matches general background */
+    width: 15px; /* Increased width for better usability */
+    margin: 22px 0; /* Spacing for arrows */
+}
+
+QScrollBar::handle:vertical {
+    background-color: #4CAF50;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #45a049;
+}
+
+QScrollBar::add-line:vertical {
+    background: #00539f; /* Color for the down arrow area */
+    height: 20px; /* Height of the down arrow button */
+    subcontrol-position: bottom; /* Position at the bottom */
+    subcontrol-origin: margin; /* Origin at the margin */
+}
+
+QScrollBar::sub-line:vertical {
+    background: #00539f; /* Color for the up arrow area */
+    height: 20px; /* Height of the up arrow button */
+    subcontrol-position: top; /* Position at the top */
+    subcontrol-origin: margin; /* Origin at the margin */
+}
+
+QScrollBar::up-arrow:vertical, 
+QScrollBar::down-arrow:vertical {
+    background: #00539f; /* Arrow button background color */
+    width: 15px; /* Width of the arrow */
+    height: 15px; /* Height of the arrow */
+}
+
+QScrollBar::up-arrow:vertical {
+    image: url('path/to/your/up-arrow-icon.png'); /* Path to your up arrow icon */
+}
+
+QScrollBar::down-arrow:vertical {
+    image: url('path/to/your/down-arrow-icon.png'); /* Path to your down arrow icon */
+}
+
+/* ToolTip */
+QToolTip {
+    background-color: #4CAF50;
+    color: white;
+    border: 1px solid #333333;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+/* Tabs */
+QTabWidget::pane {
+    border: 1px solid #cccccc;
+}
+
+QTabBar::tab {
+    background: #e0e0e0;
+    padding: 6px;
+    border-radius: 4px;
+}
+
+QTabBar::tab:selected {
+    background: #4CAF50;
+    color: white;
+}
+
+/* Progress Bar */
+QProgressBar {
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    background-color: #e0e0e0;
+}
+
+QProgressBar::chunk {
+    background-color: #4CAF50;
+    width: 20px;
+}

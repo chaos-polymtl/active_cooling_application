@@ -2,7 +2,7 @@
 
 import os
 import numpy as np
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QComboBox, QCheckBox, QPushButton, QFileDialog, QPushButton, QGridLayout
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QComboBox, QCheckBox, QPushButton, QFileDialog, QPushButton, QGridLayout, QFrame
 from PySide6.QtGui import QFont
 from matplotlib import patches, use
 from matplotlib.ticker import MaxNLocator, FormatStrFormatter
@@ -257,6 +257,7 @@ class UI(QWidget):
 
         # ================== Set PID controller section ==================
         # Add PID controller section to main layout
+        # TODO: Add PID to temperature setpoint region instead of region scroller
         title = QLabel("Controller parameters: ")
         self.layout.addWidget(title)
 
@@ -456,9 +457,6 @@ class UI(QWidget):
         # Add canvas to layout
         self.layout.addWidget(self.canvas)
         
-        # Format all QLabel (titles) instances in the app
-        self.set_font_QLabels(font_size=14)
-
         # Set layout and present window
         self.setLayout(self.layout)
         self.show()
@@ -474,54 +472,53 @@ class UI(QWidget):
         self.temperature_mfc_edit_layout.addLayout(mfc_edit_layout)
 
         # Create MFC input and display widgets
-        self.mfc_input = np.empty(self.n_region, dtype = QLineEdit)
-
-        # Create MFC display widgets
-        self.mfc_display = np.empty(self.n_region, dtype = QLineEdit)
+        self.mfc_input = np.empty(self.n_region, dtype=QLineEdit)
+        self.mfc_display = np.empty(self.n_region, dtype=QLineEdit)
 
         # Start grid row, if passed the number of columns, start a new row
         grid_row = 0
         grid_column = 0
 
-        # Create a QLineEdit widget
         for i in range(self.n_region):
+            # Layout for the current MFC
+            current_mfc_layout = QVBoxLayout()
 
             # Title of the MFC
             title = QLabel(f"MFC {i}: ")
-            mfc_edit_layout.addWidget(title, grid_row, grid_column)
+            current_mfc_layout.addWidget(title)
+
+            # Add horizontal layout to current MFC layout
+            current_mfc_horizontal_layout = QHBoxLayout()
+            current_mfc_layout.addLayout(current_mfc_horizontal_layout)
 
             # Add entry line for the current MFC
-            line_mfc = QLineEdit()
-
-            # Add MFC entry to the array
-            self.mfc_input[i] = line_mfc
-            
-            # Connect MFC entry to mfc setter
+            self.mfc_input[i] = QLineEdit()
             self.mfc_input[i].returnPressed.connect(self.set_mfc)
-
-            # Add MFC widget to control layout
-            mfc_edit_layout.addWidget(self.mfc_input[i], grid_row, grid_column + 1)
+            current_mfc_horizontal_layout.addWidget(self.mfc_input[i])
 
             # Create a line widget to display entered text
-            mfcEdit = QLineEdit()
-            mfcEdit.setReadOnly(True)
-            mfcEdit.setEnabled(False)
+            self.mfc_display[i] = QLineEdit()
+            self.mfc_display[i].setReadOnly(True)
+            self.mfc_display[i].setEnabled(False)
+            self.mfc_display[i].setText('0')
+            current_mfc_horizontal_layout.addWidget(self.mfc_display[i])
 
-            # Set default value to 0
-            mfcEdit.setText('0')
+            # Make a frame to wrap around the current MFC layout
+            frame = QFrame()
+            frame.setFrameShape(QFrame.Box)       # Box-shaped frame
+            frame.setFrameShadow(QFrame.Raised)   # Raised effect
+            frame.setLayout(current_mfc_layout)
 
-            # Add MFC display to the array
-            self.mfc_display[i] = mfcEdit
+            # Add the frame (with the layout inside) to the grid layout
+            mfc_edit_layout.addWidget(frame, grid_row, grid_column)
 
-            # Add MFC display to the layout
-            mfc_edit_layout.addWidget(self.mfc_display[i], grid_row, grid_column + 2)
-
+            # Increment grid column
             grid_column += 3
-            
             if grid_column >= self.n_columns_mfc_temperature_grid:
                 grid_row += 1
                 grid_column = 0
 
+                
     def create_temperature_section(self):
         '''Create temperature section'''
         # Create layout for Temperatures
@@ -534,48 +531,67 @@ class UI(QWidget):
         self.temperature_setpoint = np.repeat(-1, self.n_region)
 
         # Create temperature input and display widgets
-        self.temperature_input = np.empty(self.n_region, dtype = QLineEdit) 
-        self.temperature_display = np.empty(self.n_region, dtype = QLineEdit)
+        self.temperature_input = np.empty(self.n_region, dtype=QLineEdit)
+        self.temperature_display = np.empty(self.n_region, dtype=QLineEdit)
 
-        # restart grid row and column
+        # Restart grid row and column
         grid_row = 0
         grid_column = 0
 
         # Create a QLineEdit widget for temperature setpoint
         for i in range(self.n_region):
 
+            # Layout for the current temperature section
+            current_temperature_layout = QVBoxLayout()
+
             # Title of the temperature
             title = QLabel(f"Temperature {i}: ")
-            temperature_edit_layout.addWidget(title, grid_row, grid_column)
+            current_temperature_layout.addWidget(title)
+
+            # Horizontal layout for temperature input and display
+            current_temperature_horizontal_layout = QHBoxLayout()
+            current_temperature_layout.addLayout(current_temperature_horizontal_layout)
 
             # Add entry line for the current temperature
-            line_temperature = QLineEdit()
-
-            # Add temperature entry to the array
-            self.temperature_input[i] = line_temperature
+            self.temperature_input[i] = QLineEdit()
 
             # Connect temperature entry to temperature setter
             self.temperature_input[i].returnPressed.connect(self.set_temperature)
             
             # Add temperature widget to control layout
-            temperature_edit_layout.addWidget(self.temperature_input[i], grid_row, grid_column + 1)
+            current_temperature_horizontal_layout.addWidget(self.temperature_input[i])
             
-            # Create a line widget to display entered text
+            # Disable the input widget initially
             self.temperature_input[i].setEnabled(False)
 
-            # Create a QTextEdit widget to display entered text
-            temperatureEdit = QLineEdit()
-            temperatureEdit.setReadOnly(True)
-            temperatureEdit.setEnabled(False)
-            temperatureEdit.setText('---')
-            self.temperature_display[i] = temperatureEdit
-            temperature_edit_layout.addWidget(self.temperature_display[i], grid_row, grid_column + 2)
+            # Create a QLineEdit widget to display entered text
+            self.temperature_display[i] = QLineEdit()
+            self.temperature_display[i].setReadOnly(True)
+            self.temperature_display[i].setEnabled(False)
+            self.temperature_display[i].setText('---')
 
+            # Add temperature display widget to the layout
+            current_temperature_horizontal_layout.addWidget(self.temperature_display[i])
+
+            # Make a frame to wrap around the current temperature layout
+            frame = QFrame()
+            frame.setFrameShape(QFrame.Box)       # Box-shaped frame
+            frame.setFrameShadow(QFrame.Raised)   # Raised effect
+
+            # Add the current temperature layout to the frame
+            frame.setLayout(current_temperature_layout)
+
+            # Add the frame (with the layout inside) to the grid layout
+            temperature_edit_layout.addWidget(frame, grid_row, grid_column)
+            
+            # Increment grid column
             grid_column += 3
 
+            # Adjust grid row and column for next widget
             if grid_column >= self.n_columns_mfc_temperature_grid:
                 grid_row += 1
                 grid_column = 0
+
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''
