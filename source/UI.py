@@ -19,7 +19,18 @@ from source.pid_controller import PIDControl
 # ================== Set matplotlib style ==================
 from cycler import cycler
 
-colors=['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']
+colors=[
+    "#006e00",  # green
+    "#00bbad",  # caribbean
+    "#d163e6",  # lavender
+    "#b24502",  # brown
+    "#ff9287",  # coral
+    "#5954d6",  # indigo
+    "#00c6f8",  # turquoise
+    "#878500",  # olive
+    "#00a76c",  # jade
+    "#000000"   # black
+]
 
 plt.rcParams['axes.prop_cycle'] = cycler(color = colors)
 
@@ -72,7 +83,7 @@ class UI(QWidget):
         self.n_region = n_region
         
         # Colors for plots
-        self.colors_qualitative = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']
+        self.colors_qualitative = colors
 
         # Name of the window                
         self.setWindowTitle("Active Cooling")

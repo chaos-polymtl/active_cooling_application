@@ -8,19 +8,19 @@ QWidget {
 
 /* Buttons */
 QPushButton {
-    background-color: #4CAF50; /* Professional green */
+    background-color: #003B5C; /* Professional green */
     color: white;
-    border: 1px solid #3e8e41;
+    border: 1px solid #002B4C;
     padding: 8px 16px;
     border-radius: 4px;
 }
 
 QPushButton:hover {
-    background-color: #45a049;
+    background-color: #002B4C;
 }
 
 QPushButton:pressed {
-    background-color: #3e8e41;
+    background-color: #003B5C;
 }
 
 /* Text fields */
@@ -33,7 +33,7 @@ QLineEdit, QTextEdit {
 }
 
 QLineEdit:focus, QTextEdit:focus {
-    border-color: #4CAF50;
+    border-color: #002B4C;
     outline: none;
 }
 
@@ -46,19 +46,39 @@ QLabel {
 
 /* ComboBox */
 QComboBox {
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
-    padding: 6px;
-    border-radius: 4px;
+    background-color: #FFFFFF;  /* Background color */
+    border: 1px solid #003B5C;  /* NRC Blue border */
+    padding: 1px;               /* Padding inside the combo box */
 }
 
 QComboBox::drop-down {
-    border: none;
+    width: 20px;                /* Width of the drop-down arrow */
+    border-left: 1px solid #003B5C;  /* Border on the left of the arrow */
+}
+
+QComboBox::down-arrow {
+    image: url(arrow.png);
+    width: 12px;                /* Width of the arrow */
+    height: 12px;               /* Height of the arrow */
+}
+
+QComboBox::drop-down:hover {
+    background-color: #A4C8E1;  /* Light Blue background on hover */
+}
+
+QComboBox::item {
+    background-color: #FFFFFF;  /* Background color for items */
+    color: #003B5C;              /* Text color for items */
+}
+
+QComboBox::item:selected {
+    background-color: #A4C8E1;  /* Background color for selected item */
+    color: #003B5C;              /* Text color for selected item */
 }
 
 /* ScrollBars */
 QScrollArea {
-    border: 1px solid #00539f;  /* NRC blue border */
+    border: 1px solid #003B5C;  /* NRC blue border */
 }
 
 QScrollBar:vertical {
@@ -69,12 +89,12 @@ QScrollBar:vertical {
 }
 
 QScrollBar::handle:vertical {
-    background-color: #4CAF50;
+    background-color: #002B4C;
     border-radius: 5px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background-color: #45a049;
+    background-color: #002B4C;
 }
 
 QScrollBar::add-line:vertical {
@@ -98,17 +118,9 @@ QScrollBar::down-arrow:vertical {
     height: 15px; /* Height of the arrow */
 }
 
-QScrollBar::up-arrow:vertical {
-    image: url('path/to/your/up-arrow-icon.png'); /* Path to your up arrow icon */
-}
-
-QScrollBar::down-arrow:vertical {
-    image: url('path/to/your/down-arrow-icon.png'); /* Path to your down arrow icon */
-}
-
 /* ToolTip */
 QToolTip {
-    background-color: #4CAF50;
+    background-color: #002B4C;
     color: white;
     border: 1px solid #333333;
     padding: 4px;
@@ -127,7 +139,7 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected {
-    background: #4CAF50;
+    background: #002B4C;
     color: white;
 }
 
@@ -139,6 +151,6 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background-color: #4CAF50;
+    background-color: #002B4C;
     width: 20px;
 }
