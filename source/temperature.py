@@ -7,7 +7,8 @@ class Temperature():
         if self.test:
             pass
         else:
-            from .thermal_cam import ThermalCam
+            from source.thermal_cam import ThermalCam
+            self.thermal_cam = ThermalCam()
 
         # Tuple of the resolution of the camera
         self.resolution = (24,32)
@@ -25,6 +26,7 @@ class Temperature():
         if self.test:
             self.temperature = np.genfromtxt('source/test_data/temperature_static.csv', delimiter = ",", dtype=np.float32)[1:]
         else:
-            self.measure_temperature()
+            self.thermal_cam.get_temperature()
+            self.temperature = self.thermal_cam.temperature
 
         self.temperature_grid = self.temperature.reshape(self.resolution[0], self.resolution[1])

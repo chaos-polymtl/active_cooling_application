@@ -2,28 +2,34 @@ import numpy as np
 
 class PIDControl:
     def __init__(self):
-        self.previouhs_error = 0
+        self.previous_error = 0
         self.gains = np.zeros(3)
         self.output = 0
         self.integral_error = 0
 
-    def PID(self, current_temperature, setpoint, time_step):
+    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 0, flow_rate_saturation_max = 300, integral_saturation_min = -100, integral_saturation_max = 100):
         Kp = self.gains[0]
         Ki = self.gains[1]
         Kd = self.gains[2]
 
-        error = current_temperature - setpoint
-        error[setpoint <= 0] = 0
+        if setpoint < 1000:
+            error = current_temperature - setpoint
+        else:
+            error = 0
 
         # Update integral errors
-        self.integral_errors = np.roll(self.integral_errors, shift=-1, axis=1)
-        self.integral_errors[:, -1] = error
+        if current_flow_rate <= flow_rate_saturation_min or current_flow_rate >= flow_rate_saturation_max:
+            self.integral_error = 0
+        else:
+            self.integral_error += error
 
-    
-        integral = self.integral_errors.sum()
+        # Clip integral error
+        self.integral_error = min(integral_saturation_max, max(integral_saturation_min, self.integral_error))
+
+        # Update derivative
         derivative = (error - self.previous_error) / time_step
-        
-        self.output = error * Kp + Ki * integral * time_step + Kd * derivative
+
+        self.output = error * Kp + Ki * self.integral_error * time_step + Kd * derivative
         self.previous_error = error
 
         return self.output

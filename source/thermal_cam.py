@@ -7,7 +7,7 @@ import board
 import adafruit_mlx90640 as amlx
 
 # Define thermal camera class
-class thermal_cam:
+class ThermalCam:
 
     # Default constructor
     def __init__(self, test = False):
@@ -35,7 +35,6 @@ class thermal_cam:
         # Add default max and min temperature
         self.max = 100
         self.min = 30
-        self.temperature_grid = self.temperature.reshape(self.resolution[0], self.resolution[1])
 
     def get_temperature(self):
         if self.test:
@@ -44,8 +43,6 @@ class thermal_cam:
             self.getFrame(self.temperature)
             
         self.temperature = np.round(self.temperature, decimals=2)
-        self.temperature_grid = self.temperature.reshape(self.resolution[0], self.resolution[1])
-
 
     def getFrame(self, framebuf):
         OPENAIR_TA_SHIFT = 8

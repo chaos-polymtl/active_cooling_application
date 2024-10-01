@@ -44,7 +44,7 @@ class MFC():
 			return
 		self.get_analog_read()
 		
-		for i in range(5):
+		for i in range(self.flow_rate.shape[0]):
 			flow_rate = (self.ADC_analog[i] - 1) * 75 * 0.98
 			
 			if flow_rate <= 0:
@@ -55,14 +55,19 @@ class MFC():
 	def set_flow_rate(self, region, flow_rate):
 		if self.test_UI:
 			return
-		self.multiplexer.set_channel(region)
-		flow_rate = min(120, max(0, flow_rate))
+		#self.multiplexer.set_channel(region)
+		flow_rate = max(0, flow_rate)
 		analog_input = flow_rate/75 + 1
 		if((analog_input <= 5) and (analog_input > 1)):
 			self.flow_rate_setpoint[region] = (analog_input - 1) * 75
 		else:
 			self.flow_rate_setpoint[region] = 0
 			analog_input = 0
+
+		# TODO: adapt for multiplexer
+		if region == 0:
 		
-		self.DAC.DAC8532_Out_Voltage(self.DAC.channel_A, analog_input)
-		
+			self.DAC.DAC8532_Out_Voltage(self.DAC.channel_A, analog_input)
+
+		elif region == 1:
+			self.DAC.DAC8532_Out_Voltage(self.DAC.channel_B, analog_input)

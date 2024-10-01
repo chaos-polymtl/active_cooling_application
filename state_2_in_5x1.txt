@@ -1,0 +1,2 @@
+Region 0: {'Region boundaries': [0, 15, 6, 17], 'PID gains': [0.1, 0.0, 0.0]}
+Region 1: {'Region boundaries': [16, 31, 6, 17], 'PID gains': [1.0, 0.0, 0.1]}

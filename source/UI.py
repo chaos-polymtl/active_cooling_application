@@ -57,8 +57,8 @@ class UI(QWidget):
 
         # Check if test mode is enabled
         if test_UI:
-            # Create thermal camera object for testing
-            self.thermal_cam = Temperature(test = True)
+            # Create temperature and mfc object for testing
+            self.temperature = Temperature(test = True)
             self.MFC = MFC(n_region, test_UI = True)
 
         else:
@@ -66,8 +66,8 @@ class UI(QWidget):
             # Create MFC object
             self.MFC = MFC(n_region)
 
-            # Create thermal camera object
-            self.thermal_cam = Temperature.thermal_cam()
+            # Create temperature object
+            self.temperature = Temperature()
             
 
         # Create control objects
@@ -234,7 +234,7 @@ class UI(QWidget):
         
         # Set default region boundaries
         for i in range(n_region):
-            self.region_boundaries[i] = [0, self.thermal_cam.resolution[1], 0, self.thermal_cam.resolution[0]]
+            self.region_boundaries[i] = [0, self.temperature.resolution[1], 0, self.temperature.resolution[0]]
 
         # Create region boundaries input and display widgets        
         self.region_boundaries_input = np.zeros(self.n_region_corners, dtype = QLineEdit)
@@ -342,7 +342,7 @@ class UI(QWidget):
         self.min_temperature_display.setEnabled(False)
 
         # Set default min temperature
-        self.min_temperature_display.setText(str(self.thermal_cam.min))
+        self.min_temperature_display.setText(str(self.temperature.min))
 
         # Connect min temperature entry to min temperature setter
         self.min_temperature_input.returnPressed.connect(self.set_min_max_temperature_limits)
@@ -362,7 +362,7 @@ class UI(QWidget):
         self.max_temperature_display.setEnabled(False)
 
         # Set default max temperature
-        self.max_temperature_display.setText(str(self.thermal_cam.max))
+        self.max_temperature_display.setText(str(self.temperature.max))
 
         # Connect max temperature entry to max temperature setter
         self.max_temperature_input.returnPressed.connect(self.set_min_max_temperature_limits)
@@ -429,7 +429,7 @@ class UI(QWidget):
         self.ax[2].set_ylabel(r"Temperature [$^o$C]")
 
         # Create a heatmap of the temperature
-        self.temperature_image = self.ax[1].imshow(self.thermal_cam.temperature_grid, cmap="turbo", interpolation = None, vmin = self.thermal_cam.min, vmax = self.thermal_cam.max)
+        self.temperature_image = self.ax[1].imshow(self.temperature.temperature_grid, cmap="turbo", interpolation = None, vmin = self.temperature.min, vmax = self.temperature.max)
 
         # Create a colorbar for the temperature image
         self.figure.heatmap_colorbar = self.figure.colorbar(self.temperature_image)
@@ -539,7 +539,8 @@ class UI(QWidget):
         self.temperature_mfc_edit_layout.addLayout(temperature_edit_layout)
         
         # Create array for temperature setpoints
-        self.temperature_setpoint = np.repeat(-1, self.n_region)
+        dummy_large_temperature_setpoint = 100000000
+        self.temperature_setpoint = np.repeat(dummy_large_temperature_setpoint, self.n_region)
 
         # Create temperature input and display widgets
         self.temperature_input = np.empty(self.n_region, dtype=QLineEdit)
@@ -571,9 +572,6 @@ class UI(QWidget):
             
             # Add temperature widget to control layout
             current_temperature_horizontal_layout.addWidget(self.temperature_input[i])
-            
-            # Disable the input widget initially
-            self.temperature_input[i].setEnabled(False)
 
             # Create a QLineEdit widget to display entered text
             self.temperature_display[i] = QLineEdit()
@@ -613,17 +611,17 @@ class UI(QWidget):
 
         # If min temperature is not empty
         if len(min_temperature) > 0:
-            self.thermal_cam.min = float(min_temperature)
+            self.temperature.min = float(min_temperature)
             self.min_temperature_input.clear()
             self.min_temperature_display.setText(min_temperature)
 
         # If max temperature is not empty
         if len(max_temperature) > 0:
-            self.thermal_cam.max = float(max_temperature)
+            self.temperature.max = float(max_temperature)
             self.max_temperature_input.clear()
             self.max_temperature_display.setText(max_temperature)
 
-        self.temperature_image = self.ax[1].imshow(self.thermal_cam.temperature_grid, cmap="turbo", interpolation = None, vmin = self.thermal_cam.min, vmax = self.thermal_cam.max)
+        self.temperature_image = self.ax[1].imshow(self.temperature.temperature_grid, cmap="turbo", interpolation = None, vmin = self.temperature.min, vmax = self.temperature.max)
 
         self.figure.heatmap_colorbar.remove()
 
@@ -690,11 +688,11 @@ class UI(QWidget):
             
             # Apply flow rate increment to MFCs
             # TODO: Add other MFCS
-            for j in range(0):
+            for j in range(self.n_region):
                 # Calculate flow rate increment from PID controller
-                pid_output = self.pid[j].compute_output(self.temperature_average[j], self.temperature_setpoint[j], time_step = self.time_step)
+                pid_output = self.pid[j].compute_output(self.temperature_average[j], self.temperature_setpoint[j], time_step = self.time_step, current_flow_rate = self.MFC.flow_rate[j])
 
-                self.MFC.set_flow_rate(0, self.MFC.flow_rate_setpoint[0] + pid_output)
+                self.MFC.set_flow_rate(j, self.MFC.flow_rate_setpoint[j] + pid_output)
     
     def set_filename(self):
         '''Choose file to save data'''
@@ -788,7 +786,7 @@ class UI(QWidget):
             y_min, y_max, x_min, x_max = self.region_boundaries[i]
             
             # Calculate average temperature within patched region
-            self.temperature_average[i] = np.mean(self.thermal_cam.temperature_grid[x_min:x_max, y_min:y_max])
+            self.temperature_average[i] = np.mean(self.temperature.temperature_grid[x_min:x_max, y_min:y_max])
 
     
     def set_region_boundaries(self, from_state_file = False):
@@ -811,8 +809,8 @@ class UI(QWidget):
 
             # Only accept values within the resolution of the camera
             if i in [0,2] and int(text) < 0: text = 0
-            if i == 1 and int(text) > self.thermal_cam.resolution[1] - 1: text = self.thermal_cam.resolution[1] - 1
-            if i == 3 and int(text) > self.thermal_cam.resolution[0] - 1: text = self.thermal_cam.resolution[0] - 1
+            if i == 1 and int(text) > self.temperature.resolution[1] - 1: text = self.temperature.resolution[1] - 1
+            if i == 3 and int(text) > self.temperature.resolution[0] - 1: text = self.temperature.resolution[0] - 1
 
             # Set region boundaries
             self.region_boundaries[self.current_region][i] = int(text)
@@ -854,7 +852,7 @@ class UI(QWidget):
             self.get_temperature_average()
 
             # Update temperature heatmap according to new temperature information
-            self.temperature_image.set_data(self.thermal_cam.temperature_grid)
+            self.temperature_image.set_data(self.temperature.temperature_grid)
         
             # Update time array
             self.time_plot = self.time_plot[1:]
