@@ -463,7 +463,7 @@ class UI(QWidget):
 
         # Create a canvas for the figure
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumHeight(250)
+        self.canvas.setMinimumHeight(325)
 
         # Add canvas to layout
         self.layout.addWidget(self.canvas)

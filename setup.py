@@ -22,6 +22,7 @@ setup(
     entry_points={
         'console_scripts': [
             'active-cooling-experiment=source.main:Application.run',  # Entry point for command line execution
+            'active-cooling-experiment-test=source.main:Application.run_test'
         ],
     },
     classifiers=[
