@@ -12,14 +12,16 @@ class Application(UI):
     def __init__(self, n_region=2, test_UI=False):
         super().__init__()
 
+        application_dir = os.path.dirname(os.path.abspath(__file__))
+
         # Set application style
-        with open("style.qss", "r") as f:
+        with open(f"{application_dir}/style.qss", "r") as f:
             _style = f.read()
             self.setStyleSheet(_style)
 
         # Set window icon
         window_icon = QIcon()
-        window_icon.addFile(':/nrc.png')
+        window_icon.addFile(f'{application_dir}/nrc.png')
         self.setWindowIcon(window_icon)
         
         self.test_UI = test_UI
@@ -68,6 +70,13 @@ class Application(UI):
         # TODO: Add a parser to get the number of regions from the command line
         # TODO: Fix n_region
         app = QApplication(sys.argv)
+
+        # Set window icon
+        application_dir = os.path.dirname(os.path.abspath(__file__))
+        window_icon = QIcon()
+        window_icon.addFile(f'{application_dir}/nrc.png')
+        app.setWindowIcon(window_icon)
+        
         if len(sys.argv) > 1:
             n_region = int(sys.argv[1])
         else:

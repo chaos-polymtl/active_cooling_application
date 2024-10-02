@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Active Cooling Experiment
+Exec=active-cooling-experiment  # Command to execute
+Icon=/home/chaos/active_cooling_experimental/source/nrc.png          # Path to your icon file
+Terminal=false                   # Set to true if you want it to open in a terminal
+StartupNotify=false               # Enables startup notification
+Categories=Utility;              # Adjust categories as needed

@@ -692,7 +692,7 @@ class UI(QWidget):
                 # Calculate flow rate increment from PID controller
                 pid_output = self.pid[j].compute_output(self.temperature_average[j], self.temperature_setpoint[j], time_step = self.time_step, current_flow_rate = self.MFC.flow_rate[j])
 
-                self.MFC.set_flow_rate(j, self.MFC.flow_rate_setpoint[j] + pid_output)
+                self.MFC.set_flow_rate(j, pid_output)
     
     def set_filename(self):
         '''Choose file to save data'''

@@ -13,7 +13,11 @@ setup(
     author="Bruno Blais",
     author_email="bruno.blais@polymtl.ca",
     url="https://github.com/chaos-polymtl/active_cooling_experimental",
-    packages=find_packages(include=["source", "source.*"]),
+    packages=find_packages(include=["*","source", "source.*"]),
+    include_package_data=True,
+    package_data={
+        'source': ['style.qss', 'nrc.png'],         # Add style.qss here
+    },
     install_requires=parse_requirements('requirements.txt'),  # Load dependencies from requirements.txt
     entry_points={
         'console_scripts': [
