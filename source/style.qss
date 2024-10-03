@@ -11,7 +11,7 @@ QPushButton {
     background-color: #003B5C; 
     color: white;
     border: 1px solid #002B4C;
-    padding: 8px 8px;
+    padding: 6px 4px;
     border-radius: 4px;
 }
 
@@ -27,7 +27,7 @@ QPushButton:pressed {
 QLineEdit, QTextEdit {
     background-color: #ffffff;
     border: 1px solid #cccccc;
-    padding: 4px;
+    padding: 3px;
     border-radius: 3px;
     color: #333333;
 }
@@ -134,7 +134,7 @@ QTabWidget::pane {
 
 QTabBar::tab {
     background: #e0e0e0;
-    padding: 6px;
+    padding: 4px;
     border-radius: 4px;
 }
 

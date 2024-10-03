@@ -24,6 +24,13 @@ class Application(UI):
         self.setWindowIcon(QIcon())
         window_icon = QIcon(f"{application_dir}/nrc.png")
         self.setWindowIcon(window_icon)
+
+        # Get the screen's available geometry
+        #screen_geometry = QApplication.primaryScreen().availableGeometry()
+        #self.screen_height = screen_geometry.height()
+
+        # Set the maximum height of the window
+        #self.setMaximumHeight(self.screen_height)
         
         self.test_UI = test_UI
         self.init_UI(n_region, test_UI)
@@ -42,6 +49,8 @@ class Application(UI):
         self.timer.timeout.connect(self.temperature.get_temperature)
         if not self.test_UI:
             self.timer.timeout.connect(self.MFC.get_flow_rate)
+
+        #self.timer.timeout.connect(self.resize)
         self.timer.timeout.connect(self.apply_control)
         self.timer.timeout.connect(self.update_plot)
         self.timer.timeout.connect(self.save_data)
@@ -65,6 +74,11 @@ class Application(UI):
             self.save_data_array = self.save_data_array.reshape(1, -1)
             with open(self.filename, 'w') as file:
                 np.savetxt(file, self.save_data_array, delimiter=',', fmt='%10.5f')
+
+    #def resize(self):
+        # Ensure the window height does not exceed the screen height
+        #if self.height() > self.screen_height:
+            #self.resize(self.width(), self.screen_height)
 
     @staticmethod
     def run():

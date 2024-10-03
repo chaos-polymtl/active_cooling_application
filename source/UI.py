@@ -40,6 +40,7 @@ plt.rcParams['figure.autolayout'] = True
 
 plt.rcParams['lines.markersize'] = '11'
 plt.rcParams['lines.markeredgewidth'] = 1.5
+plt.rcParams['lines.linewidth'] = 4
 
 plt.rcParams['legend.frameon'] = True
 
@@ -90,7 +91,7 @@ class UI(QWidget):
 
         # Set main self.layout
         self.layout = QVBoxLayout()
-        self.layout.setSpacing(5)
+        self.layout.setSpacing(3)
 
         # ================== Save mode section ==================
         # Set title        
@@ -419,7 +420,7 @@ class UI(QWidget):
 
         # Create a canvas for the figure
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setMinimumHeight(325)
+        self.canvas.setMinimumHeight(300)
 
         # Add canvas to layout
         self.layout.addWidget(self.canvas)
@@ -747,6 +748,12 @@ class UI(QWidget):
                     self.pid_display[i][j].setText(self.pid_input[i][j].text())
                     self.pid_input[i][j].clear()
 
+        # Update display with gains of the current region
+        for i in range(self.n_region):
+            for j in range(self.n_controller_parameters):
+                self.pid_display[i][j].setText(str(self.pid[i].gains[j]))
+        
+
     def set_mfc(self):
         '''Set MFC flow rate upon changing value'''
         for i in range(self.n_region):
@@ -845,13 +852,7 @@ class UI(QWidget):
 
         # Updage patches according to the current region
         for i in range(self.n_region_corners):
-            self.region_boundaries_display[i].setText(str(self.region_boundaries[self.current_region][i]))
-
-        # If temperature control mode is enabled
-        # Update display with gains of the current region
-        for i in range(self.n_controller_parameters):
-            self.pid_display[i].setText(str(self.pid[self.current_region].gains[i]))
-        
+            self.region_boundaries_display[i].setText(str(self.region_boundaries[self.current_region][i]))        
 
     def update_plot(self):
         '''Update all plots in the figure'''
@@ -902,12 +903,11 @@ class UI(QWidget):
         self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors_qualitative[i])
 
         # Also update setpoint plots if temperature control mode is enabled
-        # TODO: Add setpoint to figure
-        # if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0:
+        
+        if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0 and self.temperature_setpoint[i] < 1000:
             
-        #     self.ax[0].plot(self.time_plot, np.repeat(self.MFC.flow_rate_setpoint[i], len(self.time_plot)), color = self.colors_qualitative[i], alpha = 0.3)
-        #     self.ax[2].plot(self.time_plot, np.repeat(self.temperature_setpoint[i], len(self.time_plot)), color = self.colors_qualitative[i], alpha = 0.3)
-
+            self.ax[2].plot(self.time_plot, np.repeat(self.temperature_setpoint[i], len(self.time_plot)), color = self.colors_qualitative[i], alpha = 0.5)
+    
     def change_n_plot_points(self):
         '''Change number of points in the plot'''
 

@@ -7,7 +7,7 @@ class PIDControl:
         self.output = 0
         self.integral_error = 0
 
-    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 0, flow_rate_saturation_max = 300, integral_saturation_min = -100, integral_saturation_max = 100):
+    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 5, flow_rate_saturation_max = 100, output_min = 0, output_max = 100):
         Kp = self.gains[0]
         Ki = self.gains[1]
         Kd = self.gains[2]
@@ -23,13 +23,12 @@ class PIDControl:
         else:
             self.integral_error += error
 
-        # Clip integral error
-        self.integral_error = min(integral_saturation_max, max(integral_saturation_min, self.integral_error))
-
         # Update derivative
         derivative = (error - self.previous_error) / time_step
 
         self.output = error * Kp + Ki * self.integral_error * time_step + Kd * derivative
         self.previous_error = error
+
+        self.output = min(output_max, max(output_min, self.output))
 
         return self.output
