@@ -266,51 +266,6 @@ class UI(QWidget):
             self.region_boundaries_display[i] = boundaries_lineEdit
             region_boundaries_layout.addWidget(self.region_boundaries_display[i])
 
-        # ================== Set PID controller section ==================
-        # Add PID controller section to main layout
-        # TODO: Add PID to temperature setpoint region instead of region scroller
-        title = QLabel("Controller parameters: ")
-        self.layout.addWidget(title)
-
-        # Add PID controller gains setter area
-        control_parameter_names = ["Proportional: ", "Integral: ", "Differential: "]
-        controller_parameter_edit_layout = QHBoxLayout()
-        self.layout.addLayout(controller_parameter_edit_layout)
-
-        # Parameters of the PID controllers
-        self.n_controller_parameters = 3
-        self.controller_parameter = np.zeros(self.n_controller_parameters)
-        self.pid_input = np.empty(self.n_controller_parameters, dtype = QLineEdit)
-        self.pid_display = np.empty(self.n_controller_parameters, dtype = QLineEdit)
-
-        # Create controller parameter setter
-        for i in range(self.n_controller_parameters):
-
-            # Title of the gains
-            controller_parameter_title = QLabel(control_parameter_names[i])
-
-            # Add field for each controller's gain
-            control_edit_line = QLineEdit()
-            self.pid_input[i] = control_edit_line
-            
-            # Set parameter upon changing value
-            # When value is changed, set the parameter using the function set_pid_gains
-            self.pid_input[i].returnPressed.connect(self.set_pid_gains)
-
-            # Add PID widget to control layout
-            controller_parameter_edit_layout.addWidget(controller_parameter_title)
-            controller_parameter_edit_layout.addWidget(self.pid_input[i])
-
-            # Add line with PID gains value
-            controller_parameter_lineEdit = QLineEdit()
-            controller_parameter_lineEdit.setReadOnly(True)
-            controller_parameter_lineEdit.setEnabled(False)
-            controller_parameter_lineEdit.setText(str(self.controller_parameter[i]))
-            self.pid_display[i] = controller_parameter_lineEdit
-            controller_parameter_edit_layout.addWidget(self.pid_display[i])
-            
-        self.set_pid_gains()
-
         # ================== Set figures section ==================
         # Add figures title to main layout
         title = QLabel("Figures: ")
@@ -582,6 +537,9 @@ class UI(QWidget):
             # Add temperature display widget to the layout
             current_temperature_horizontal_layout.addWidget(self.temperature_display[i])
 
+            # Add PID to current temperature layout
+            self.create_pid_section(region = i, current_temperature_layout = current_temperature_layout)
+
             # Make a frame to wrap around the current temperature layout
             frame = QFrame()
             frame.setFrameShape(QFrame.Box)       # Box-shaped frame
@@ -600,6 +558,51 @@ class UI(QWidget):
             if grid_column >= self.n_columns_mfc_temperature_grid:
                 grid_row += 1
                 grid_column = 0
+
+
+    def create_pid_section(self, region, current_temperature_layout):
+        # Add PID controller section to main layout
+        title = QLabel("Controller parameters: ")
+        self.current_temperature_layout.addWidget(title)
+
+        # Add PID controller gains setter area
+        control_parameter_names = ["Proportional: ", "Integral: ", "Differential: "]
+        controller_parameter_edit_layout = QHBoxLayout()
+        self.current_temperature_layout.addLayout(controller_parameter_edit_layout)
+
+        # Parameters of the PID controllers
+        self.n_controller_parameters = 3
+        controller_parameter = np.zeros(self.n_controller_parameters)
+        self.pid_input = np.empty(self.n_controller_parameters, dtype = QLineEdit)
+        self.pid_display = np.empty(self.n_controller_parameters, dtype = QLineEdit)
+
+        # Create controller parameter setter
+        for i in range(self.n_controller_parameters):
+
+            # Title of the gains
+            controller_parameter_title = QLabel(control_parameter_names[i])
+
+            # Add field for each controller's gain
+            control_edit_line = QLineEdit()
+            self.pid_input[i] = control_edit_line
+            
+            # Set parameter upon changing value
+            # When value is changed, set the parameter using the function set_pid_gains
+            self.pid_input[i].returnPressed.connect(self.set_pid_gains)
+
+            # Add PID widget to control layout
+            controller_parameter_edit_layout.addWidget(controller_parameter_title)
+            controller_parameter_edit_layout.addWidget(self.pid_input[i])
+
+            # Add line with PID gains value
+            controller_parameter_lineEdit = QLineEdit()
+            controller_parameter_lineEdit.setReadOnly(True)
+            controller_parameter_lineEdit.setEnabled(False)
+            controller_parameter_lineEdit.setText(str(controller_parameter[i]))
+            self.pid_display[i] = controller_parameter_lineEdit
+            controller_parameter_edit_layout.addWidget(self.pid_display[i])
+            
+        self.set_pid_gains()
 
 
     def set_min_max_temperature_limits(self):
@@ -731,11 +734,12 @@ class UI(QWidget):
         '''Set PID controller gains'''
 
         # Set controller parameters
-        for i in range(self.n_controller_parameters):
-            if len(self.pid_input[i].text()) > 0:
-                self.pid[self.current_region].gains[i] = float(self.pid_input[i].text())
-                self.pid_display[i].setText(self.pid_input[i].text())
-                self.pid_input[i].clear()
+        for i in range(self.n_region):
+            for j in range(self.n_controller_parameters):
+                if len(self.pid_input[i][j].text()) > 0:
+                    self.pid[i].gains[j] = float(self.pid_input[i][j].text())
+                    self.pid_display[i][j].setText(self.pid_input[i][j].text())
+                    self.pid_input[i][j].clear()
 
     def set_mfc(self):
         '''Set MFC flow rate upon changing value'''
