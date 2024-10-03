@@ -90,6 +90,7 @@ class UI(QWidget):
 
         # Set main self.layout
         self.layout = QVBoxLayout()
+        self.layout.setSpacing(5)
 
         # ================== Save mode section ==================
         # Set title        
@@ -501,6 +502,12 @@ class UI(QWidget):
         self.temperature_input = np.empty(self.n_region, dtype=QLineEdit)
         self.temperature_display = np.empty(self.n_region, dtype=QLineEdit)
 
+        # Create PID containers
+        # Parameters of the PID controllers
+        self.n_controller_parameters = 3
+        self.pid_input = [np.empty(self.n_controller_parameters, dtype = QLineEdit) for _ in range(self.n_region)]
+        self.pid_display = [np.empty(self.n_controller_parameters, dtype = QLineEdit) for _ in range(self.n_region)]
+
         # Restart grid row and column
         grid_row = 0
         grid_column = 0
@@ -562,47 +569,46 @@ class UI(QWidget):
 
     def create_pid_section(self, region, current_temperature_layout):
         # Add PID controller section to main layout
-        title = QLabel("Controller parameters: ")
-        self.current_temperature_layout.addWidget(title)
+        title = QLabel("PID parameters: ")
+        current_temperature_layout.addWidget(title)
 
         # Add PID controller gains setter area
         control_parameter_names = ["Proportional: ", "Integral: ", "Differential: "]
-        controller_parameter_edit_layout = QHBoxLayout()
-        self.current_temperature_layout.addLayout(controller_parameter_edit_layout)
-
-        # Parameters of the PID controllers
-        self.n_controller_parameters = 3
-        controller_parameter = np.zeros(self.n_controller_parameters)
-        self.pid_input = np.empty(self.n_controller_parameters, dtype = QLineEdit)
-        self.pid_display = np.empty(self.n_controller_parameters, dtype = QLineEdit)
+        controller_parameter_edit_layout = QVBoxLayout()
+        current_temperature_layout.addLayout(controller_parameter_edit_layout)
 
         # Create controller parameter setter
+        controller_parameter = np.zeros(self.n_controller_parameters)
         for i in range(self.n_controller_parameters):
+
+            # Horizontal layout per parameters
+            controller_gain_edit_layout = QHBoxLayout()
+            controller_parameter_edit_layout.addLayout(controller_gain_edit_layout)
 
             # Title of the gains
             controller_parameter_title = QLabel(control_parameter_names[i])
 
             # Add field for each controller's gain
             control_edit_line = QLineEdit()
-            self.pid_input[i] = control_edit_line
+            self.pid_input[region][i] = control_edit_line
             
             # Set parameter upon changing value
             # When value is changed, set the parameter using the function set_pid_gains
-            self.pid_input[i].returnPressed.connect(self.set_pid_gains)
+            self.pid_input[region][i].returnPressed.connect(self.set_pid_gains)
 
             # Add PID widget to control layout
-            controller_parameter_edit_layout.addWidget(controller_parameter_title)
-            controller_parameter_edit_layout.addWidget(self.pid_input[i])
+            controller_gain_edit_layout.addWidget(controller_parameter_title)
+            controller_gain_edit_layout.addWidget(self.pid_input[region][i])
 
             # Add line with PID gains value
-            controller_parameter_lineEdit = QLineEdit()
-            controller_parameter_lineEdit.setReadOnly(True)
-            controller_parameter_lineEdit.setEnabled(False)
-            controller_parameter_lineEdit.setText(str(controller_parameter[i]))
-            self.pid_display[i] = controller_parameter_lineEdit
-            controller_parameter_edit_layout.addWidget(self.pid_display[i])
+            controller_gain_lineEdit = QLineEdit()
+            controller_gain_lineEdit.setReadOnly(True)
+            controller_gain_lineEdit.setEnabled(False)
+            controller_gain_lineEdit.setText(str(controller_parameter[i]))
+            self.pid_display[region][i] = controller_gain_lineEdit
+            controller_gain_edit_layout.addWidget(self.pid_display[region][i])
             
-        self.set_pid_gains()
+        #self.set_pid_gains()
 
 
     def set_min_max_temperature_limits(self):

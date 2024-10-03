@@ -8,10 +8,10 @@ QWidget {
 
 /* Buttons */
 QPushButton {
-    background-color: #003B5C; /* Professional green */
+    background-color: #003B5C; 
     color: white;
     border: 1px solid #002B4C;
-    padding: 8px 14px;
+    padding: 8px 8px;
     border-radius: 4px;
 }
 
@@ -27,8 +27,8 @@ QPushButton:pressed {
 QLineEdit, QTextEdit {
     background-color: #ffffff;
     border: 1px solid #cccccc;
-    padding: 6px;
-    border-radius: 4px;
+    padding: 4px;
+    border-radius: 3px;
     color: #333333;
 }
 
