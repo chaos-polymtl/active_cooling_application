@@ -20,8 +20,9 @@ class Application(UI):
             self.setStyleSheet(_style)
 
         # Set window icon
-        window_icon = QIcon()
-        window_icon.addFile(f'{application_dir}/nrc.png')
+        # TODO: Fix icon
+        self.setWindowIcon(QIcon())
+        window_icon = QIcon(f"{application_dir}/nrc.png")
         self.setWindowIcon(window_icon)
         
         self.test_UI = test_UI
@@ -67,16 +68,7 @@ class Application(UI):
 
     @staticmethod
     def run():
-        # TODO: Add a parser to get the number of regions from the command line
-        # TODO: Fix n_region
-        app = QApplication(sys.argv)
-
-        # Set window icon
-        application_dir = os.path.dirname(os.path.abspath(__file__))
-        window_icon = QIcon()
-        window_icon.addFile(f'{application_dir}/nrc.png')
-        app.setWindowIcon(window_icon)
-        
+        app = QApplication(sys.argv)        
         if len(sys.argv) > 1:
             n_region = int(sys.argv[1])
         else:
@@ -89,6 +81,7 @@ class Application(UI):
         for i in range(n_region):
             window.MFC.set_flow_rate(i, 0)
 
+    @staticmethod
     def run_test():
         app = QApplication(sys.argv)
 
