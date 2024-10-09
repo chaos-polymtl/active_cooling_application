@@ -12,10 +12,6 @@ use('Agg')
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 
-from source.temperature import Temperature
-from source.mass_flow_controller import MFC
-from source.pid_controller import PIDControl
-
 # ================== Set matplotlib style ==================
 from cycler import cycler
 
@@ -54,27 +50,7 @@ plt.rcParams['font.size'] = '12'
 # ================== User interface ==================
 class UI(QWidget):
     # Create user interface
-    def init_UI(self, n_region, test_UI = False):
-
-        # Check if test mode is enabled
-        if test_UI:
-            # Create temperature and mfc object for testing
-            self.temperature = Temperature(test = True)
-            self.MFC = MFC(n_region, test_UI = True)
-
-        else:
-
-            # Create MFC object
-            self.MFC = MFC(n_region)
-
-            # Create temperature object
-            self.temperature = Temperature()
-            
-
-        # Create control objects
-        self.pid = []
-        for j in range(n_region):
-            self.pid.append(PIDControl())
+    def init_UI(self, temperature, MFC, PID, n_region, test_UI = False):       
 
         # Set lower limit to temperature setpoint
         # TODO: make widget for this
@@ -82,6 +58,10 @@ class UI(QWidget):
         
         # Set number of regions
         self.n_region = n_region
+
+        self.temperature = temperature
+        self.MFC = MFC
+        self.PID = PID
         
         # Colors for plots
         self.colors_qualitative = colors
@@ -236,7 +216,7 @@ class UI(QWidget):
         
         # Set default region boundaries
         for i in range(n_region):
-            self.region_boundaries[i] = [0, self.temperature.resolution[1], 0, self.temperature.resolution[0]]
+            self.region_boundaries[i] = [0, temperature.resolution[1], 0, temperature.resolution[0]]
 
         # Create region boundaries input and display widgets        
         self.region_boundaries_input = np.zeros(self.n_region_corners, dtype = QLineEdit)
@@ -299,7 +279,7 @@ class UI(QWidget):
         self.min_temperature_display.setEnabled(False)
 
         # Set default min temperature
-        self.min_temperature_display.setText(str(self.temperature.min))
+        self.min_temperature_display.setText(str(temperature.min))
 
         # Connect min temperature entry to min temperature setter
         self.min_temperature_input.returnPressed.connect(self.set_min_max_temperature_limits)
@@ -319,7 +299,7 @@ class UI(QWidget):
         self.max_temperature_display.setEnabled(False)
 
         # Set default max temperature
-        self.max_temperature_display.setText(str(self.temperature.max))
+        self.max_temperature_display.setText(str(temperature.max))
 
         # Connect max temperature entry to max temperature setter
         self.max_temperature_input.returnPressed.connect(self.set_min_max_temperature_limits)
@@ -356,9 +336,6 @@ class UI(QWidget):
         n_plot_points_layout.addWidget(self.n_plot_points_input)
         n_plot_points_layout.addWidget(self.n_plot_points_display)
 
-        # Create container to temperature average within regions
-        self.temperature_average = np.zeros(n_region)
-
         # Create a matplotlib figure with 3 subplots: MFC outputs, Infrared camera heatmap, Average temperature per region
         self.figure, self.ax = plt.subplots(1, 4, width_ratios=[1, 1, 1, 0.3])
         
@@ -386,7 +363,7 @@ class UI(QWidget):
         self.ax[2].set_ylabel(r"Temperature [$^o$C]")
 
         # Create a heatmap of the temperature
-        self.temperature_image = self.ax[1].imshow(self.temperature.temperature_grid, cmap="turbo", interpolation = None, vmin = self.temperature.min, vmax = self.temperature.max)
+        self.temperature_image = self.ax[1].imshow(temperature.temperature_grid, cmap="turbo", interpolation = None, vmin = temperature.min, vmax = temperature.max)
 
         # Create a colorbar for the temperature image
         self.figure.heatmap_colorbar = self.figure.colorbar(self.temperature_image)
@@ -642,7 +619,7 @@ class UI(QWidget):
 
         # If temperature control mode is enabled
         # Restart setpoints for MFCs and temperature
-        self.MFC.flow_rate_setpoint = np.zeros(self.n_region)
+        self.flow_rate_setpoint = np.zeros(self.n_region)
         self.temperature_setpoint = np.repeat(None, self.n_region)
         
         for i in range(self.n_region):
@@ -689,21 +666,6 @@ class UI(QWidget):
             self.save_checkbox.setChecked(False)
             self.save_mode = False
 
-    def apply_control(self):
-        '''Apply PID control to MFCs flow rate'''
-        if self.mfc_temperature_checkbox.isChecked():
-            
-            # Get temperature averages
-            self.get_temperature_average()
-            
-            # Apply flow rate increment to MFCs
-            # TODO: Add other MFCS
-            for j in range(self.n_region):
-                # Calculate flow rate increment from PID controller
-                pid_output = self.pid[j].compute_output(self.temperature_average[j], self.temperature_setpoint[j], time_step = self.time_step, current_flow_rate = self.MFC.flow_rate[j])
-
-                self.MFC.set_flow_rate(j, pid_output)
-    
     def set_filename(self):
         '''Choose file to save data'''
 
@@ -744,14 +706,14 @@ class UI(QWidget):
         for i in range(self.n_region):
             for j in range(self.n_controller_parameters):
                 if len(self.pid_input[i][j].text()) > 0:
-                    self.pid[i].gains[j] = float(self.pid_input[i][j].text())
+                    self.PID[i].gains[j] = float(self.pid_input[i][j].text())
                     self.pid_display[i][j].setText(self.pid_input[i][j].text())
                     self.pid_input[i][j].clear()
 
         # Update display with gains of the current region
         for i in range(self.n_region):
             for j in range(self.n_controller_parameters):
-                self.pid_display[i][j].setText(str(self.pid[i].gains[j]))
+                self.pid_display[i][j].setText(str(self.PID[i].gains[j]))
         
 
     def set_mfc(self):
@@ -792,19 +754,6 @@ class UI(QWidget):
                 # Clear input line
                 self.temperature_input[i].clear()
             
-    
-    def get_temperature_average(self):
-        '''Get temperature average within regions'''
-
-        # Get temperature average within regions
-        for i in range(self.n_region):
-
-            # Get region boundaries
-            y_min, y_max, x_min, x_max = self.region_boundaries[i]
-            
-            # Calculate average temperature within patched region
-            self.temperature_average[i] = np.mean(self.temperature.temperature_grid[x_min:x_max, y_min:y_max])
-
     
     def set_region_boundaries(self, from_state_file = False):
         '''Set region boundaries upon changing value'''
@@ -854,28 +803,26 @@ class UI(QWidget):
         for i in range(self.n_region_corners):
             self.region_boundaries_display[i].setText(str(self.region_boundaries[self.current_region][i]))        
 
-    def update_plot(self):
+    def update_plot(self, time, temperature, MFC):
         '''Update all plots in the figure'''
 
         # If update plot is enabled
         if self.update_plot_checkbox.isChecked():
 
-            self.get_temperature_average()
-
             # Update temperature heatmap according to new temperature information
-            self.temperature_image.set_data(self.temperature.temperature_grid)
+            self.temperature_image.set_data(temperature.temperature_grid)
         
             # Update time array
             self.time_plot = self.time_plot[1:]
-            self.time_plot = np.append(self.time_plot, self.time)
+            self.time_plot = np.append(self.time_plot, time)
 
             # Update flow rate array only if not in test_UI mode
             self.flow_rate_plot = np.delete(self.flow_rate_plot, (0), axis = 1)
-            self.flow_rate_plot = np.append(self.flow_rate_plot, np.transpose([self.MFC.flow_rate]), axis = 1)
+            self.flow_rate_plot = np.append(self.flow_rate_plot, np.transpose([MFC.flow_rate]), axis = 1)
 
             # Update temperature on plot        
             self.temperature_plot = np.delete(self.temperature_plot, (0), axis = 1)
-            self.temperature_plot = np.append(self.temperature_plot, np.transpose([self.temperature_average]), axis = 1)
+            self.temperature_plot = np.append(self.temperature_plot, np.transpose([temperature.temperature_average]), axis = 1)
 
             # Clear all lines in the plot
             [line.remove() for line in self.ax[0].lines]
@@ -970,8 +917,15 @@ class UI(QWidget):
         # Create dictionary to save parameters
         experimental_parameters = {}
 
-        for i in range(self.n_region):
-            experimental_parameters[f"Region {i}"] = {'Region boundaries': self.region_boundaries[i].tolist(), 'PID gains': self.pid[i].gains.tolist()}
+        experimental_parameters["Temperature mode"] = self.mfc_temperature_checkbox.isChecked()
+
+        if self.mfc_temperature_checkbox.isChecked():
+            for i in range(self.n_region):
+                experimental_parameters[f"Region {i}"] = {'Region boundaries': self.region_boundaries[i].tolist(), 'PID gains': self.pid_display[i].tolist()}
+
+        else:
+            for i in range(self.n_region):
+                experimental_parameters[f"Region {i}"] = {'Region boundaries': self.region_boundaries[i].tolist()}
             
         # Save parameters to file
         with open(self.state_filename, 'w') as file:
@@ -997,15 +951,20 @@ class UI(QWidget):
                 # Store parameter into dictionary
                 experimental_parameters[key] = value
 
+        self.mfc_temperature_checkbox.setChecked(eval(experimental_parameters['Temperature mode']))
+        if self.mfc_temperature_checkbox.isChecked():
+            self.mfc_temperature_checkbox.toggled.emit(True)
+
         self.load_region_boundaries = []
 
         # Assign parameters to the current experiment
         for i in range(self.n_region):
             region_parameters = eval(experimental_parameters[f"Region {i}"])
             self.load_region_boundaries.append(np.array(region_parameters['Region boundaries']).astype(int))
-            self.pid[i].gains = np.array(region_parameters['PID gains']).astype(float)
-            
 
+            if self.mfc_temperature_checkbox.isChecked():
+                self.PID[i].gains = np.array(region_parameters['PID gains']).astype(float)
+            
         # Update boundaries of patches
         for i in range(self.n_region):
             self.current_region = i

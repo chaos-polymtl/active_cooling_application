@@ -18,8 +18,10 @@ class PIDControl:
             error = 0
 
         # Update integral errors
+        # Only update if not saturated
         if current_flow_rate <= flow_rate_saturation_min or current_flow_rate >= flow_rate_saturation_max:
-            self.integral_error = 0
+            self.integral_error = self.integral_error
+            
         else:
             self.integral_error += error
 

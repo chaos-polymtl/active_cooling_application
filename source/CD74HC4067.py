@@ -23,7 +23,7 @@ class CD74HC4067:
         [1,  1,  1,  1]])
 	    
         self.pins = [16, 12, 19, 26]
-	    
+                
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         for pin in self.pins:

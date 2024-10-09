@@ -1,39 +1,23 @@
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTimer, QElapsedTimer, QThread, Signal, Slot, QObject
+from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtCore import QTimer, QElapsedTimer, QThread
 from PySide6.QtGui import QIcon
 import sys
 import os
 import numpy as np
+
 from source.UI import UI
+from source.temperature import Temperature
+from source.mass_flow_controller import MFC
+from source.pid_controller import PIDControl
+from source.workers import MeasureAndControlWorker
 
-# Define a worker class for measure and control logic
-class MeasureAndControlWorker(QObject):
-    # Define signals to communicate with the main thread
-    update_ui_signal = Signal()
-
-    def __init__(self, application):
-        super().__init__()
-        self.application = application
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.perform_measure_and_control)
-
-    def start(self):
-        # Start the QTimer to run every second (1000 ms)
-        self.timer.start(1000)
-
-    def perform_measure_and_control(self):
-        self.application.get_time()
-        self.application.temperature.get_temperature()
-        if not self.application.test_UI:
-            self.application.MFC.get_flow_rate()
-        self.application.apply_control()
-        self.application.save_data()
-        # Emit the signal to update the UI
-        self.update_ui_signal.emit()
-
-class Application(UI):
+class Application(QMainWindow):
     def __init__(self, n_region=2, test_UI=False):
         super().__init__()
+
+        self.n_region = n_region
+        self.test_UI = test_UI
+        
         application_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Set application style
@@ -45,45 +29,44 @@ class Application(UI):
         window_icon = QIcon(f"{application_dir}/nrc.png")
         self.setWindowIcon(window_icon)
 
-        self.test_UI = test_UI
-        self.init_UI(n_region, test_UI)
+        # Create temperature instance
+        self.temperature = Temperature(n_region, self.test_UI)
+
+        # Create MFC instance
+        self.MFC = MFC(n_region, test_UI)
+
+        # Create control objects
+        self.PID = []
+        for j in range(n_region):
+            self.PID.append(PIDControl())
+
+        # Create UI instance
+        self.UI = UI()
+        self.UI.init_UI(temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
+        self.setCentralWidget(self.UI)
+
+        # Create control objects
+        self.pid = []
+        for j in range(n_region):
+            self.pid.append(PIDControl())
         
-        self.start_threads()
-
-    def start_threads(self):
-        self.elapsed_timer = QElapsedTimer()
-        self.elapsed_timer.start()
-        self.initial_time = self.elapsed_timer.elapsed() / 1000
-        self.previous_time = self.elapsed_timer.elapsed() / 1000
-
-        # Create and start the thread for measure and control
         self.measure_and_control_thread = QThread()
-        self.worker = MeasureAndControlWorker(self)
-        self.worker.moveToThread(self.measure_and_control_thread)
+        self.measure_and_control_worker = MeasureAndControlWorker(self)
+        self.measure_and_control_worker.start_threads()
 
-        # Connect the worker's signal to the update_plot method
-        self.worker.update_ui_signal.connect(self.update_plot)
+        self.measure_and_control_worker.stop_signal.connect(self.measure_and_control_thread.quit)
+        self.measure_and_control_thread.finished.connect(self.measure_and_control_worker.deleteLater)
 
-        # Start the worker and the thread
-        self.measure_and_control_thread.started.connect(self.worker.start)
-        self.measure_and_control_thread.start()
+    def closeEvent(self, event):
+        
+        # Stop the worker's timer
+        self.measure_and_control_worker.stop_signal.emit()
 
-    def get_time(self):
-        self.time = self.elapsed_timer.elapsed() / 1000
-        self.time_step = self.elapsed_timer.elapsed() / 1000 - self.previous_time
-        self.previous_time = self.time
+        # Disconnect any signals to prevent access to deleted objects
+        self.measure_and_control_worker.update_ui_signal.disconnect()
 
-    def save_data(self):
-        if self.save_mode:
-            self.save_data_array = np.zeros(1 + 2 * self.n_region + self.temperature.resolution[0] * self.temperature.resolution[1])
-            self.save_data_array[0] = self.time
-            if not self.test_UI:
-                self.save_data_array[1:self.n_region + 1] = self.MFC.flow_rate
-            self.save_data_array[self.n_region + 1:self.n_region * 2 + 1] = self.temperature_average
-            self.save_data_array[self.n_region * 2 + 1:] = self.temperature.temperature
-            self.save_data_array = self.save_data_array.reshape(1, -1)
-            with open(self.filename, 'w') as file:
-                np.savetxt(file, self.save_data_array, delimiter=',', fmt='%10.5f')
+        # Allow the application to close
+        event.accept()
 
     @staticmethod
     def run():
