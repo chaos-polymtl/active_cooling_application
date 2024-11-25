@@ -1,4 +1,5 @@
 from PySide6.QtCore import QObject, QTimer, QElapsedTimer, Signal, Slot
+import numpy as np
 
 # Define a worker class for measure and control logic
 class MeasureAndControlWorker(QObject):
@@ -65,14 +66,14 @@ class MeasureAndControlWorker(QObject):
 
     def save_data(self):
         if self.application.UI.save_mode:
-            self.save_data_array = np.zeros(1 + 2 * self.n_region + self.temperature.resolution[0] * self.temperature.resolution[1])
-            self.save_data_array[0] = self.time
-            if not self.test_UI:
-                self.save_data_array[1:self.n_region + 1] = self.MFC.flow_rate
-            self.save_data_array[self.n_region + 1:self.n_region * 2 + 1] = self.temperature_average
-            self.save_data_array[self.n_region * 2 + 1:] = self.temperature.temperature
+            self.save_data_array = np.zeros(1 + 2 * self.application.n_region + self.application.temperature.resolution[0] * self.application.temperature.resolution[1])
+            self.save_data_array[0] = self.application.time
+            if not self.application.test_UI:
+                self.save_data_array[1:self.application.n_region + 1] = self.application.MFC.flow_rate
+            self.save_data_array[self.application.n_region + 1:self.application.n_region * 2 + 1] = self.application.temperature.temperature_average
+            self.save_data_array[self.application.n_region * 2 + 1:] = self.application.temperature.temperature
             self.save_data_array = self.save_data_array.reshape(1, -1)
-            with open(self.application.filename, 'w') as file:
+            with open(self.application.UI.filename, 'a') as file:
                 np.savetxt(file, self.save_data_array, delimiter=',', fmt='%10.5f')
         
 
