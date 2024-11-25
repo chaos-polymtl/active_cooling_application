@@ -59,6 +59,9 @@ class UI(QWidget):
         # Set number of regions
         self.n_region = n_region
 
+        # Set number of controller parameters
+        self.n_controller_parameters = 3
+
         self.temperature = temperature
         self.MFC = MFC
         self.PID = PID
@@ -696,8 +699,16 @@ class UI(QWidget):
                     header += f'mfc_{i}'
                 else:
                     header += f'temperature_{i-self.n_region}'
-            header += ', temperature_vec\n'
+
+            header += '\n'
+            
             file.write(header)
+
+        # Create file for temperature
+        with open(self.filename.replace('.csv', '_temp.csv'), 'w') as file:
+            header = 'time, temperature\n'
+            file.write(header)
+            
 
     def set_pid_gains(self):
         '''Set PID controller gains'''
