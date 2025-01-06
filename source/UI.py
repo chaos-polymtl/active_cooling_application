@@ -666,6 +666,11 @@ class UI(QWidget):
         # Update file display
         scheduler_file_line.setText(self.scheduler_filename)
 
+        if self.scheduler_data.shape[0] > 1:
+            self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- " + str(self.scheduler_data[1][0]))
+        else:
+            self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
+        self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''

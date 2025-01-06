@@ -65,14 +65,15 @@ class MeasureAndControlWorker(QObject):
                 for j in range(self.application.n_region):
                     self.application.MFC.set_flow_rate(j, scheduler_flow_per_mfc[j])
 
-                if self.application.UI.scheduler_data.shape[0] > 1:
-                    scheduler_time_after = self.application.UI.scheduler_data[1][0]
-                    self.application.UI.scheduler_data = np.delete(self.application.UI.scheduler_data, axis = 0, obj = 0)
+            if self.application.UI.scheduler_data.shape[0] > 1:
+                scheduler_time_after = self.application.UI.scheduler_data[1][0]
+                self.application.UI.scheduler_data = np.delete(self.application.UI.scheduler_data, axis = 0, obj = 0)
 
-                    self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- " + str(scheduler_time_after))
+                self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- " + str(scheduler_time_after))
 
-                else:
-                    self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- end")
+            else:
+                self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- end")
+            self.scheduler_current_flow_rate.setText(str(scheduler_flow_per_mfc))
 
     def start_threads(self):
         # Create and start the thread for measure and control
