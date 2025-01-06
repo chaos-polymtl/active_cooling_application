@@ -73,7 +73,7 @@ class MeasureAndControlWorker(QObject):
 
             else:
                 self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- end")
-            self.scheduler_current_flow_rate.setText(str(scheduler_flow_per_mfc))
+            self.application.UI.scheduler_current_flow_rate.setText(str(scheduler_flow_per_mfc))
 
     def start_threads(self):
         # Create and start the thread for measure and control
