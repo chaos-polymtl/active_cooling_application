@@ -18,6 +18,10 @@ class MeasureAndControlWorker(QObject):
         self.application.time = self.elapsed_timer.elapsed() / 1000
         self.application.previous_time = self.elapsed_timer.elapsed() / 1000
 
+        # Triggers for time restart
+        self.application.UI.scheduler_checkbox.checkStateChanged.connect(self.elapsed_timer.restart)
+        self.application.UI.save_checkbox.checkStateChanged.connect(self.elapsed_timer.restart)
+
         # Define signal to communicate with main thread
         self.timer.start(1000)
 
@@ -28,6 +32,7 @@ class MeasureAndControlWorker(QObject):
         if not self.application.test_UI:
             self.application.MFC.get_flow_rate()
         self.apply_control()
+        self.apply_scheduler()
         self.save_data()
         # Emit the signal to update the UI
         self.update_ui_signal.emit()
@@ -48,6 +53,26 @@ class MeasureAndControlWorker(QObject):
                 pid_output = self.application.PID[j].compute_output(temperature_average[j], temperature_setpoint[j], time_step, current_flow_rate[j])
 
                 self.application.MFC.set_flow_rate(j, pid_output)
+
+    def apply_scheduler(self):
+        '''Apply scheduler to MFCs flow rate'''    
+
+        if self.application.UI.scheduler_checkbox.isChecked():
+            scheduler_time = self.application.UI.scheduler_data[0][0]
+            scheduler_flow_per_mfc = self.application.UI.scheduler_data[0][1:]
+
+            if self.application.time >= scheduler_time:
+                for j in range(self.application.n_region):
+                    self.application.MFC.set_flow_rate(j, scheduler_flow_per_mfc[j])
+
+                if self.application.UI.scheduler_data.shape[0] > 1:
+                    scheduler_time_after = self.application.UI.scheduler_data[1][0]
+                    self.application.UI.scheduler_data = np.delete(self.application.UI.scheduler_data, axis = 0, obj = 0)
+
+                    self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- " + str(scheduler_time_after))
+
+                else:
+                    self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- end")
 
     def start_threads(self):
         # Create and start the thread for measure and control
@@ -82,4 +107,3 @@ class MeasureAndControlWorker(QObject):
             with open(self.application.UI.filename.replace('.csv', '_temp.csv'), 'a') as file:
                 np.savetxt(file, self.save_temperature_array, delimiter = ',', fmt = '%10.5f')
         
-
