@@ -57,23 +57,28 @@ class MeasureAndControlWorker(QObject):
     def apply_scheduler(self):
         '''Apply scheduler to MFCs flow rate'''    
 
-        if self.application.UI.scheduler_checkbox.isChecked():
-            scheduler_time = self.application.UI.scheduler_data[0][0]
-            scheduler_flow_per_mfc = self.application.UI.scheduler_data[0][1:]
-
-            if self.application.time >= scheduler_time:
-                for j in range(self.application.n_region):
-                    self.application.MFC.set_flow_rate(j, scheduler_flow_per_mfc[j])
-
-            if self.application.UI.scheduler_data.shape[0] > 1:
-                scheduler_time_after = self.application.UI.scheduler_data[1][0]
+        if self.application.UI.scheduler_checkbox.isChecked() and len(self.application.UI.scheduler_filename) > 1:
+            change_time = self.application.UI.scheduler_change_time
+            scheduled_flow_rates = self.application.UI.scheduler_data[0][1:]
+            
+            if change_time > 0 and self.application.time >= change_time:
                 self.application.UI.scheduler_data = np.delete(self.application.UI.scheduler_data, axis = 0, obj = 0)
+                
+                if self.application.UI.scheduler_data.shape[0] > 1:
+                    self.application.UI.scheduler_change_time = self.application.UI.scheduler_data[1][0]
+                    self.application.UI.scheduler_current_time.setText(str(self.application.UI.scheduler_data[0][0]) + " --- " + str(self.application.UI.scheduler_data[1][0]))
 
-                self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- " + str(scheduler_time_after))
+                else:
+                    self.application.UI.scheduler_change_time = -1
+                    self.application.UI.scheduler_current_time.setText(str(self.application.UI.scheduler_data[0][0]) + " --- end")
 
-            else:
-                self.application.UI.scheduler_current_time.setText(str(scheduler_time) + " --- end")
-            self.application.UI.scheduler_current_flow_rate.setText(str(scheduler_flow_per_mfc))
+                self.application.UI.scheduler_current_flow_rate.setText(str(self.application.UI.scheduler_data[0][1:]))                                        
+
+            for j in range(self.application.n_region):
+                self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
+
+                            
+                
 
     def start_threads(self):
         # Create and start the thread for measure and control

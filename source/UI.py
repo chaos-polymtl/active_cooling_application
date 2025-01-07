@@ -238,7 +238,7 @@ class UI(QWidget):
         # Add checkbox to layout
         mfc_temperature_selector.addWidget(self.mfc_temperature_checkbox)
         
-        self.scheduler_filename = '.txt'
+        self.scheduler_filename = ''
 
         self.scheduler_checkbox = QCheckBox('Scheduler', self)
 
@@ -610,9 +610,11 @@ class UI(QWidget):
         self.clear_layout(self.temperature_mfc_edit_layout)
 
         if self.scheduler_checkbox.isChecked():
+            self.mfc_temperature_checkbox.setEnabled(False)
             self.create_scheduler_section()
 
         else:
+            self.mfc_temperature_checkbox.setEnabled(True)
             self.create_mfc_section()
 
     def create_scheduler_section(self):
@@ -660,17 +662,21 @@ class UI(QWidget):
             scheduler_file_line.setText('File not chosen. Please, choose a file with scheduling information.')
             return
 
-        # Read csv with time, and mfc stepoints
-        self.scheduler_data = np.genfromtxt(self.scheduler_filename, delimiter = ',')
-
-        # Update file display
-        scheduler_file_line.setText(self.scheduler_filename)
-
-        if self.scheduler_data.shape[0] > 1:
-            self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- " + str(self.scheduler_data[1][0]))
         else:
-            self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
-        self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
+
+            # Read csv with time, and mfc stepoints
+            self.scheduler_data = np.genfromtxt(self.scheduler_filename, delimiter = ',')
+
+            # Update file display
+            scheduler_file_line.setText(self.scheduler_filename)
+
+            if self.scheduler_data.shape[0] > 1:
+                self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- " + str(self.scheduler_data[1][0]))
+                self.scheduler_change_time = self.scheduler_data[1][0]
+            else:
+                self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
+                self.scheduler_change_time = -1
+            self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''

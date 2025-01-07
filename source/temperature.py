@@ -16,7 +16,7 @@ class Temperature():
         # Emissivity
         self.emissivity = 0.95
             
-        self.max = 100
+        self.max = 120
         self.min = 30
 
         self.temperature = np.zeros(self.resolution[0] * self.resolution[1])

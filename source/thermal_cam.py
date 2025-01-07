@@ -33,7 +33,7 @@ class ThermalCam:
         self.temperature = np.zeros(self.resolution[0]*self.resolution[1])
 
         # Add default max and min temperature
-        self.max = 100
+        self.max = 120
         self.min = 30
 
     def get_temperature(self):
