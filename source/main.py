@@ -65,6 +65,10 @@ class Application(QMainWindow):
         # Disconnect any signals to prevent access to deleted objects
         self.measure_and_control_worker.update_ui_signal.disconnect()
 
+        # Zero MFCs flow rate
+        for j in range(self.n_region):
+            self.MFC.set_flow_rate(j, 0)
+
         # Allow the application to close
         event.accept()
 

@@ -23,7 +23,7 @@ class MeasureAndControlWorker(QObject):
         self.application.UI.save_checkbox.checkStateChanged.connect(self.elapsed_timer.restart)
 
         # Define signal to communicate with main thread
-        self.timer.start(1000)
+        self.timer.start(500)
 
     def perform_measure_and_control(self):
         self.get_time()
@@ -78,8 +78,6 @@ class MeasureAndControlWorker(QObject):
                 self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
 
                             
-                
-
     def start_threads(self):
         # Create and start the thread for measure and control
         self.moveToThread(self.application.measure_and_control_thread)

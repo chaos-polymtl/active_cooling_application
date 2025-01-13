@@ -1,4 +1,16 @@
-# User interface of application
+'''
+Copyright 2024-2025, the Active Cooling Experimental Application Authors
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+'''
 
 import os
 import numpy as np
@@ -86,7 +98,7 @@ class UI(QWidget):
         self.layout.addLayout(save_state_layout)
 
         # Set default state filename
-        self.state_filename = 'state.txt'
+        self.state_filename = ''
 
         # Create a push button to save state
         save_state_button = QPushButton('Save state')
@@ -925,13 +937,9 @@ class UI(QWidget):
             self.temperature_plot = np.delete(self.temperature_plot, (0), axis = 1)
             self.temperature_plot = np.append(self.temperature_plot, np.transpose([temperature.temperature_average]), axis = 1)
 
-            # Clear all lines in the plot
-            [line.remove() for line in self.ax[0].lines]
-            [line.remove() for line in self.ax[2].lines]
-
             # Update plot information per region 
             [self.update_single_plot(i) for i in range(self.n_region)]
-            
+
             # Update plot limits
             self.ax[0].relim()
             self.ax[2].relim()
@@ -947,8 +955,8 @@ class UI(QWidget):
     def update_single_plot(self, i):
         '''Update plot information per region'''
 
-        self.ax[0].plot(self.time_plot, self.flow_rate_plot[i, :], '.', color = self.colors_qualitative[i])
-        self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors_qualitative[i])
+        self.ax[0].get_children()[i].set_data(self.time_plot,self.flow_rate_plot[i, :])
+        self.ax[2].get_children()[i].set_data(self.time_plot,self.temperature_plot[i, :])
 
         # Also update setpoint plots if temperature control mode is enabled
         
