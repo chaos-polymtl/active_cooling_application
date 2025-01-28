@@ -394,7 +394,7 @@ class UI(QWidget):
         # Create a list of patches to draw the regions
         self.patches = []
         
-        # Create a array of time, flow rate and temperature for plotting
+        # Create a array of time, flow rate, temperature and temperature setpoints for plotting
         self.time_plot = np.zeros(self.n_plot_points)
         self.flow_rate_plot = np.zeros((n_region, self.n_plot_points))
         self.temperature_plot = np.zeros((n_region, self.n_plot_points))
@@ -734,11 +734,16 @@ class UI(QWidget):
             self.create_temperature_section()
             self.scheduler_checkbox.setChecked(False)
             self.scheduler_checkbox.setEnabled(False)
+            self.setpoint_plot = np.zeros((self.n_region, self.n_plot_points))
+            self.ax[2].plot(self.time_plot, self.setpoint_plot[i, :], '--', color = self.colors_qualitative[i], label = f'Setpoint {i}')  # Plot new data
 
         else:
             self.create_mfc_section()
             self.scheduler_checkbox.setChecked(False)
             self.scheduler_checkbox.setEnabled(True)
+            self.setpoint_plot = np.zeros((self.n_region, self.n_plot_points))
+            self.setpoint_plot = np.delete(self.setpoint_plot)
+
 
     def clear_layout(self, layout):
         '''Function to delete all layouts from a parent layout'''
@@ -937,8 +942,15 @@ class UI(QWidget):
             self.temperature_plot = np.delete(self.temperature_plot, (0), axis = 1)
             self.temperature_plot = np.append(self.temperature_plot, np.transpose([temperature.temperature_average]), axis = 1)
 
+            if self.mfc_temperature_checkbox.isChecked():
+                self.setpoint_plot = np.delete(self.setpoint_plot, (0), axis = 1)
+                self.setpoint_plot = np.append(self.setpoint_plot, np.transpose([self.temperature_setpoint]), axis = 1)
+
             # Update plot information per region 
             [self.update_single_plot(i) for i in range(self.n_region)]
+
+            # Update setpoint on plot
+            
 
             # Update plot limits
             self.ax[0].relim()
@@ -959,10 +971,10 @@ class UI(QWidget):
         self.ax[2].get_children()[i].set_data(self.time_plot,self.temperature_plot[i, :])
 
         # Also update setpoint plots if temperature control mode is enabled
-        
+        # TODO - make the temperature_setpoint be bound by the maximum and minimum temperatures of the camera
         if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0 and self.temperature_setpoint[i] < 1000:
-            
-            self.ax[2].plot(self.time_plot, np.repeat(self.temperature_setpoint[i], len(self.time_plot)), color = self.colors_qualitative[i], alpha = 0.5)
+            self.ax[2].plot(self.time_plot, self.setpoint_plot[i, :], '--', color = self.colors_qualitative[i], label = f'Setpoint {i}')
+        
     
     def change_n_plot_points(self):
         '''Change number of points in the plot'''
@@ -995,12 +1007,18 @@ class UI(QWidget):
                     # Update temperature array
                     self.temperature_plot = np.append(np.zeros((self.n_region, new_n_plot_points - self.n_plot_points)), self.temperature_plot, axis = 1)
 
+                    # Update setpoint array
+                    if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0 and self.temperature_setpoint[i] < 1000:
+                        self.setpoint_plot = np.append(np.zeros((self.n_region, new_n_plot_points - self.n_plot_points)), self.setpoint_plot, axis = 1)
+
             elif new_n_plot_points < self.n_plot_points:
 
                 # If new number of points is smaller than the current number of points
                 self.time_plot = self.time_plot[-new_n_plot_points:]
                 self.flow_rate_plot = self.flow_rate_plot[:, -new_n_plot_points:]
                 self.temperature_plot = self.temperature_plot[:, -new_n_plot_points:]
+                if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0 and self.temperature_setpoint[i] < 1000:
+                        self.setpoint_plot = self.setpoint_plot[:, -new_n_plot_points:]
 
             # Update number of points
             self.n_plot_points = new_n_plot_points
