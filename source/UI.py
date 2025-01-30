@@ -24,6 +24,7 @@ use('Agg')
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 
+
 # ================== Set matplotlib style ==================
 from cycler import cycler
 
@@ -734,15 +735,12 @@ class UI(QWidget):
             self.create_temperature_section()
             self.scheduler_checkbox.setChecked(False)
             self.scheduler_checkbox.setEnabled(False)
-            self.setpoint_plot = np.zeros((self.n_region, self.n_plot_points))
-            self.ax[2].plot(self.time_plot, self.setpoint_plot[i, :], '--', color = self.colors_qualitative[i], label = f'Setpoint {i}')  # Plot new data
-
+            self.setpoint_plot = np.full((self.n_region, self.n_plot_points), np.nan)  # Initialize with NaN
+            self.valid_temperature_setpoint = np.full(self.n_region, False)  # Track validity of setpoints
         else:
             self.create_mfc_section()
             self.scheduler_checkbox.setChecked(False)
             self.scheduler_checkbox.setEnabled(True)
-            self.setpoint_plot = np.zeros((self.n_region, self.n_plot_points))
-            self.setpoint_plot = np.delete(self.setpoint_plot)
 
 
     def clear_layout(self, layout):
@@ -943,8 +941,18 @@ class UI(QWidget):
             self.temperature_plot = np.append(self.temperature_plot, np.transpose([temperature.temperature_average]), axis = 1)
 
             if self.mfc_temperature_checkbox.isChecked():
-                self.setpoint_plot = np.delete(self.setpoint_plot, (0), axis = 1)
-                self.setpoint_plot = np.append(self.setpoint_plot, np.transpose([self.temperature_setpoint]), axis = 1)
+                self.setpoint_plot = np.delete(self.setpoint_plot, (0), axis=1)
+
+                new_setpoint = np.full(self.n_region, np.nan)  # Default to NaN
+                for i in range(self.n_region):
+                    if self.temperature_setpoint[i] is not None and 0 <= self.temperature_setpoint[i] <= 1000:
+                        new_setpoint[i] = self.temperature_setpoint[i]
+                        self.valid_temperature_setpoint[i] = True  # Mark as valid
+                    else:
+                        self.valid_temperature_setpoint[i] = False  # Mark as invalid
+
+                self.setpoint_plot = np.append(self.setpoint_plot, np.transpose([new_setpoint]), axis=1)
+
 
             # Update plot information per region 
             [self.update_single_plot(i) for i in range(self.n_region)]
@@ -968,14 +976,21 @@ class UI(QWidget):
         '''Update plot information per region'''
 
         self.ax[0].get_children()[i].set_data(self.time_plot,self.flow_rate_plot[i, :])
+
+        # Update the temperature plot
         self.ax[2].get_children()[i].set_data(self.time_plot,self.temperature_plot[i, :])
 
-        # Also update setpoint plots if temperature control mode is enabled
-        # TODO - make the temperature_setpoint be bound by the maximum and minimum temperatures of the camera
-        if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0 and self.temperature_setpoint[i] < 1000:
-            self.ax[2].plot(self.time_plot, self.setpoint_plot[i, :], '--', color = self.colors_qualitative[i], label = f'Setpoint {i}')
+        # Ensure the setpoint is plotted as a separate curve
+        if self.mfc_temperature_checkbox.isChecked() and self.valid_temperature_setpoint[i]:
+            if hasattr(self, 'setpoint_lines') and len(self.setpoint_lines) > i:
+                self.setpoint_lines[i].set_data(self.time_plot, self.setpoint_plot[i, :])
+            else:
+                if not hasattr(self, 'setpoint_lines'):
+                    self.setpoint_lines = []
+                line, = self.ax[2].plot(self.time_plot, self.setpoint_plot[i, :], '--', color=self.colors_qualitative[i], label=f'Setpoint {i}')
+                self.setpoint_lines.append(line)
         
-    
+        
     def change_n_plot_points(self):
         '''Change number of points in the plot'''
 
