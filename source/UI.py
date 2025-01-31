@@ -809,9 +809,15 @@ class UI(QWidget):
             for i in range(self.n_region):
                 header += f', temperature_{i}'
 
-            # Add Temperature Setpoint headers
-            for i in range(self.n_region):
-                header += f', temperature_setpoint_{i}'
+            # Executes if temperature control mode is enabled (be sure to create file and save data after clicking the checkbox)
+            if self.mfc_temperature_checkbox.isChecked():
+                # Add Temperature Setpoint headers
+                for i in range(self.n_region):
+                    header += f', temperature_setpoint_{i}'
+                    # Add PID headers for each region
+                for i in range(self.n_region):
+                    for j in range(self.n_controller_parameters):
+                        header += f', pid_{i}_{j}'
 
             header += '\n'
             
