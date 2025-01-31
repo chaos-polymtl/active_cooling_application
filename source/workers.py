@@ -45,6 +45,7 @@ class MeasureAndControlWorker(QObject):
             temperature_average = self.application.temperature.temperature_average
             temperature_setpoint = self.application.UI.temperature_setpoint
             time_step = self.application.time_step
+            self.application.UI.time_step = self.application.time_step
             
             # Apply flow rate increment to MFCs
             # TODO: Add other MFCS

@@ -68,6 +68,8 @@ class UI(QWidget):
         # Set lower limit to temperature setpoint
         # TODO: make widget for this
         self.temperature_setpoint_lower_limit = 50
+
+        self.time_step = 1
         
         # Set number of regions
         self.n_region = n_region
@@ -798,12 +800,18 @@ class UI(QWidget):
             
             # Write header
             header = 'time'
-            for i in range(2*self.n_region):
-                header += ', '
-                if i < self.n_region:
-                    header += f'mfc_{i}'
-                else:
-                    header += f'temperature_{i-self.n_region}'
+
+            # Add MFC headers
+            for i in range(self.n_region):
+                header += f', mfc_{i}'
+
+            # Add Temperature headers
+            for i in range(self.n_region):
+                header += f', temperature_{i}'
+
+            # Add Temperature Setpoint headers
+            for i in range(self.n_region):
+                header += f', temperature_setpoint_{i}'
 
             header += '\n'
             
@@ -990,7 +998,7 @@ class UI(QWidget):
                 line, = self.ax[2].plot(self.time_plot, self.setpoint_plot[i, :], '--', color=self.colors_qualitative[i], label=f'Setpoint {i}')
                 self.setpoint_lines.append(line)
         
-        
+
     def change_n_plot_points(self):
         '''Change number of points in the plot'''
 
