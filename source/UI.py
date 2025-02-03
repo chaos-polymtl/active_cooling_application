@@ -816,8 +816,14 @@ class UI(QWidget):
                     header += f', temperature_setpoint_{i}'
                     # Add PID headers for each region
                 for i in range(self.n_region):
-                    for j in range(self.n_controller_parameters):
-                        header += f', pid_{i}_{j}'
+                        header += f', P_{i}'
+                for i in range(self.n_region):
+                        header += f', I_{i}'
+                for i in range(self.n_region):
+                        header += f', D_{i}'
+
+            for i in range(self.n_region):
+                header += f', region_{i}_x_min, region_{i}_x_max, region_{i}_y_min, region_{i}_y_max'
 
             header += '\n'
             

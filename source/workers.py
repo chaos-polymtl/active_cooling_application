@@ -97,22 +97,29 @@ class MeasureAndControlWorker(QObject):
     def save_data(self):
         if self.application.UI.save_mode:
             if self.application.UI.mfc_temperature_checkbox.isChecked():
+                self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))              
                 self.save_data_array = np.zeros(1 + 10 * self.application.n_region)
-                self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))
+                self.save_data_array[2*self.application.n_region + 1 : 3*self.application.n_region + 1] = self.application.UI.temperature_setpoint
+                for i in range(self.application.n_region):
+                    for j in range(3):
+                        self.save_data_array[(3+j)*self.application.n_region + 1 + i] = self.application.UI.PID[i].gains[j]
 
-                self.save_data_array[0] = self.application.time
-                self.save_temperature_array[0] = self.application.time
+                    data_indexing = 1+ 6*self.application.n_region + (i*4)
+                    self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
+
             else:
-                self.save_data_array = np.zeros(1 + 6 * self.application.n_region)
+                self.save_data_array = np.zeros(5 + 2 * self.application.n_region)
                 self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))
 
-                self.save_data_array[0] = self.application.time
-                self.save_temperature_array[0] = self.application.time
+                self.save_data_array[2*self.application.n_region +1 : 2*self.application.n_region + 5] = self.application.UI.region_boundaries
+
+            self.save_data_array[0] = self.application.time
+            self.save_temperature_array[0] = self.application.time
             
             if not self.application.test_UI:
                 self.save_data_array[1:self.application.n_region + 1] = self.application.MFC.flow_rate
 
-            self.save_data_array[self.application.n_region + 1:self.application.n_region * 2 + 1] = self.application.temperature.temperature_average
+            self.save_data_array[self.application.n_region + 1 : self.application.n_region * 2 + 1] = self.application.temperature.temperature_average
             self.save_temperature_array[1:] = self.application.temperature.temperature
 
             self.save_data_array = self.save_data_array.reshape(1, -1)
