@@ -108,10 +108,12 @@ class MeasureAndControlWorker(QObject):
                     self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
 
             else:
-                self.save_data_array = np.zeros(5 + 2 * self.application.n_region)
+                self.save_data_array = np.zeros(1 + 6* self.application.n_region)
                 self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))
 
-                self.save_data_array[2*self.application.n_region +1 : 2*self.application.n_region + 5] = self.application.UI.region_boundaries
+                for i in range(self.application.n_region):
+                    data_indexing = 1+ 2*self.application.n_region + (i*4)
+                    self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
 
             self.save_data_array[0] = self.application.time
             self.save_temperature_array[0] = self.application.time
