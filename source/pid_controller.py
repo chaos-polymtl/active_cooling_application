@@ -21,7 +21,7 @@ class PIDControl:
         self.output = 0
         self.integral_error = 0
 
-    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 5, flow_rate_saturation_max = 100, output_min = 0, output_max = 100):
+    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 5, flow_rate_saturation_max = 300, output_min = 0, output_max = 300):
         Kp = self.gains[0]
         Ki = self.gains[1]
         Kd = self.gains[2]
