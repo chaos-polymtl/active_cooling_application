@@ -44,11 +44,6 @@ class Application(QMainWindow):
         self.UI = UI()
         self.UI.init_UI(temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
         self.setCentralWidget(self.UI)
-
-        # Create control objects
-        self.pid = []
-        for j in range(n_region):
-            self.pid.append(PIDControl())
         
         self.measure_and_control_thread = QThread()
         self.measure_and_control_worker = MeasureAndControlWorker(self)
