@@ -1083,7 +1083,8 @@ class UI(QWidget):
 
         if self.mfc_temperature_checkbox.isChecked():
             for i in range(self.n_region):
-                experimental_parameters[f"Region {i}"] = {'Region boundaries': self.region_boundaries[i].tolist(), 'PID gains': self.pid_display[i].tolist()}
+                pid_gains = [self.pid_display[i][j].text() for j in range(self.n_controller_parameters)]
+                experimental_parameters[f"Region {i}"] = {'Region boundaries': self.region_boundaries[i].tolist(), 'PID gains': pid_gains}
 
         else:
             for i in range(self.n_region):
