@@ -611,8 +611,7 @@ class UI(QWidget):
             controller_gain_lineEdit.setText(str(controller_parameter[i]))
             self.pid_display[region][i] = controller_gain_lineEdit
             controller_gain_edit_layout.addWidget(self.pid_display[region][i])
-            
-        #self.set_pid_gains()
+
 
     def toggle_scheduler(self):
         '''Scheduler. Called when toggled'''
@@ -627,33 +626,34 @@ class UI(QWidget):
         if self.scheduler_checkbox.isChecked():
             self.mfc_temperature_checkbox.setEnabled(False)
             self.create_scheduler_section()
-
         else:
             self.mfc_temperature_checkbox.setEnabled(True)
-            self.create_mfc_section()
+            if self.mfc_temperature_checkbox.isChecked():
+                self.create_temperature_section()
+            else:
+                self.create_mfc_section()
 
     def create_scheduler_section(self):
         '''Create scheduler section'''
 
         self.scheduler_data = np.zeros((1, self.n_region + 1))
 
-        # Create layout for scheduler
+        # Create new layout (scheduler layout) for the scheduler section 
         scheduler_layout = QVBoxLayout()
-
         # Add scheduler section to temperature_mfc layout
         self.temperature_mfc_edit_layout.addLayout(scheduler_layout)
 
-        # Create a QLineEdit widget for scheduler
+        # Create a QLineEdit widget for scheduler (read-only text box to display chosen scheduler file)
         scheduler_file_line = QLineEdit()
         scheduler_file_line.setReadOnly(True)
         scheduler_file_line.setEnabled(False)
         scheduler_layout.addWidget(scheduler_file_line)
 
-        # Create a textbox for the scheduler data
+        # Create a textbox for displaying scheduler data
         self.scheduler_text_layout = QGridLayout()
         scheduler_layout.addLayout(self.scheduler_text_layout)
+        
         scheduler_current_time_label = QLabel('Current time interval: ')
-        scheduler_current_flow_rate_label = QLabel('Current flow rate per MFC: ')
         self.scheduler_current_time = QLineEdit()
         self.scheduler_current_time.setReadOnly(True)
         self.scheduler_current_time.setEnabled(False)
@@ -661,14 +661,25 @@ class UI(QWidget):
             self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- " + str(self.scheduler_data[1][0]))
         else:
             self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
+
+        scheduler_current_flow_rate_label = QLabel('Current flow rate per MFC: ')
         self.scheduler_current_flow_rate = QLineEdit()
         self.scheduler_current_flow_rate.setReadOnly(True)
         self.scheduler_current_flow_rate.setEnabled(False)
         self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
 
+        scheduler_current_temperature_label = QLabel('Current temperature setpoint per region: ')
+        self.scheduler_current_temperature = QLineEdit()
+        self.scheduler_current_temperature.setReadOnly(True)
+        self.scheduler_current_temperature.setEnabled(False)
+        self.scheduler_current_temperature.setText(str(self.scheduler_data[0][1:]))     
+
         self.scheduler_text_layout.addWidget(scheduler_current_time_label, 0, 0)
         self.scheduler_text_layout.addWidget(self.scheduler_current_time, 0, 1)
-        self.scheduler_text_layout.addWidget(scheduler_current_flow_rate_label, 1, 0)
+        if self.mfc_temperature_checkbox.isChecked():
+            self.scheduler_text_layout.addWidget(scheduler_current_temperature_label, 1, 0)
+        else:
+            self.scheduler_text_layout.addWidget(scheduler_current_flow_rate_label, 1, 0)
         self.scheduler_text_layout.addWidget(self.scheduler_current_flow_rate, 1, 1)
 
         self.scheduler_filename = QFileDialog.getOpenFileName(self, 'Choose scheduler file', os.path.expanduser('~'), 'Text files (*.csv)')[0]
@@ -691,7 +702,11 @@ class UI(QWidget):
             else:
                 self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
                 self.scheduler_change_time = -1
-            self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
+
+            if self.mfc_temperature_checkbox.isChecked():
+                self.scheduler_current_temperature.setText(str(self.scheduler_data[0][1:]))
+            else:
+                self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''
@@ -735,14 +750,10 @@ class UI(QWidget):
 
         if self.mfc_temperature_checkbox.isChecked():
             self.create_temperature_section()
-            self.scheduler_checkbox.setChecked(False)
-            self.scheduler_checkbox.setEnabled(False)
             self.setpoint_plot = np.full((self.n_region, self.n_plot_points), np.nan)  # Initialize with NaN
             self.valid_temperature_setpoint = np.full(self.n_region, False)  # Track validity of setpoints
         else:
             self.create_mfc_section()
-            self.scheduler_checkbox.setChecked(False)
-            self.scheduler_checkbox.setEnabled(True)
 
 
     def clear_layout(self, layout):

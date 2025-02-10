@@ -26,8 +26,11 @@ class PIDControl:
         Ki = self.gains[1]
         Kd = self.gains[2]
 
-        if setpoint < 1000:
+        if setpoint is None or isinstance(setpoint, int):
+            error = 0
+        elif setpoint < 1000:
             error = current_temperature - setpoint
+            
         else:
             error = 0
 
