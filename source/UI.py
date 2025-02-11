@@ -666,7 +666,7 @@ class UI(QWidget):
         self.scheduler_current_flow_rate = QLineEdit()
         self.scheduler_current_flow_rate.setReadOnly(True)
         self.scheduler_current_flow_rate.setEnabled(False)
-        self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
+        self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:])) # there is this same line in workers...
 
         scheduler_current_temperature_label = QLabel('Current temperature setpoint per region: ')
         self.scheduler_current_temperature = QLineEdit()
@@ -745,6 +745,7 @@ class UI(QWidget):
             
             # Reset MFCs flow rate
             self.MFC.set_flow_rate(i, 0)
+            self.MFC.set_temperature_setpoint(i, 0)
 
         self.clear_layout(self.temperature_mfc_edit_layout)
 
