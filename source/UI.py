@@ -745,7 +745,6 @@ class UI(QWidget):
             
             # Reset MFCs flow rate
             self.MFC.set_flow_rate(i, 0)
-            self.MFC.set_temperature_setpoint(i, 0)
 
         self.clear_layout(self.temperature_mfc_edit_layout)
 
