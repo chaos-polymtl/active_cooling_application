@@ -261,6 +261,10 @@ class UI(QWidget):
 
         mfc_temperature_selector.addWidget(self.scheduler_checkbox)
 
+        self.decoupler_checkbox = QCheckBox('Decoupler', self)
+        
+        mfc_temperature_selector.addWidget(self.decoupler_checkbox)
+
         # Add checkbox to main layout
         self.layout.addLayout(mfc_temperature_selector)
         
@@ -437,10 +441,10 @@ class UI(QWidget):
     def create_mfc_section(self):
         '''Create MFC section'''
         # Create layout for MFCs
-        mfc_edit_layout = QGridLayout()
+        self.mfc_edit_layout = QGridLayout()
 
         # Add MFC section to temperature_mfc layout
-        self.temperature_mfc_edit_layout.addLayout(mfc_edit_layout)
+        self.temperature_mfc_edit_layout.addLayout(self.mfc_edit_layout)
 
         # Create MFC input and display widgets
         self.mfc_input = np.empty(self.n_region, dtype=QLineEdit)
@@ -481,7 +485,7 @@ class UI(QWidget):
             frame.setLayout(current_mfc_layout)
 
             # Add the frame (with the layout inside) to the grid layout
-            mfc_edit_layout.addWidget(frame, grid_row, grid_column)
+            self.mfc_edit_layout.addWidget(frame, grid_row, grid_column)
 
             # Increment grid column
             grid_column += 3
@@ -536,9 +540,8 @@ class UI(QWidget):
             # Connect temperature entry to temperature setter
             self.temperature_input[i].returnPressed.connect(self.set_temperature)
             
-            if not self.scheduler_checkbox.isChecked():
-                # Add temperature widget to control layout
-                current_temperature_horizontal_layout.addWidget(self.temperature_input[i])
+            # Add temperature widget to control layout
+            current_temperature_horizontal_layout.addWidget(self.temperature_input[i])
 
             # Create a QLineEdit widget to display entered text
             self.temperature_display[i] = QLineEdit()
@@ -546,9 +549,8 @@ class UI(QWidget):
             self.temperature_display[i].setEnabled(False)
             self.temperature_display[i].setText('---')
 
-            if not self.scheduler_checkbox.isChecked():
-                # Add temperature display widget to the layout
-                current_temperature_horizontal_layout.addWidget(self.temperature_display[i])
+            # Add temperature display widget to the layout
+            current_temperature_horizontal_layout.addWidget(self.temperature_display[i])
 
             # Add PID to current temperature layout
             self.create_pid_section(region = i, current_temperature_layout = current_temperature_layout)
@@ -623,15 +625,27 @@ class UI(QWidget):
         self.flow_rate_setpoint = np.zeros(self.n_region)
         self.temperature_setpoint = np.repeat(None, self.n_region)
 
-        self.clear_layout(self.temperature_mfc_edit_layout)
+        if not self.mfc_temperature_checkbox.isChecked():
+            self.clear_layout(self.mfc_edit_layout)
 
         if self.scheduler_checkbox.isChecked():
             self.mfc_temperature_checkbox.setEnabled(False)
             self.create_scheduler_section()
+            if self.mfc_temperature_checkbox.isChecked():
+                for i in range(self.n_region):
+                    self.temperature_input[i].setReadOnly(True)
+                    self.temperature_input[i].setEnabled(False)
+                    self.temperature_input[i].setText('---')
+                    self.temperature_display[i].setText('---')
         else:
+            self.clear_layout(self.scheduler_layout)
             self.mfc_temperature_checkbox.setEnabled(True)
             if self.mfc_temperature_checkbox.isChecked():
-                self.create_temperature_section()
+                for i in range(self.n_region):
+                    self.temperature_input[i].setReadOnly(False)
+                    self.temperature_input[i].setEnabled(True)
+                    self.temperature_input[i].setText('')
+                    self.temperature_display[i].setText('---')
             else:
                 self.create_mfc_section()
 
@@ -641,19 +655,19 @@ class UI(QWidget):
         self.scheduler_data = np.zeros((1, self.n_region + 1))
 
         # Create new layout (scheduler layout) for the scheduler section 
-        scheduler_layout = QVBoxLayout()
+        self.scheduler_layout = QVBoxLayout()
         # Add scheduler section to temperature_mfc layout
-        self.temperature_mfc_edit_layout.addLayout(scheduler_layout)
+        self.temperature_mfc_edit_layout.addLayout(self.scheduler_layout)
 
         # Create a QLineEdit widget for scheduler (read-only text box to display chosen scheduler file)
         scheduler_file_line = QLineEdit()
         scheduler_file_line.setReadOnly(True)
         scheduler_file_line.setEnabled(False)
-        scheduler_layout.addWidget(scheduler_file_line)
+        self.scheduler_layout.addWidget(scheduler_file_line)
 
         # Create a textbox for displaying scheduler data
         self.scheduler_text_layout = QGridLayout()
-        scheduler_layout.addLayout(self.scheduler_text_layout)
+        self.scheduler_layout.addLayout(self.scheduler_text_layout)
         
         scheduler_current_time_label = QLabel('Current time interval: ')
         self.scheduler_current_time = QLineEdit()
@@ -664,32 +678,18 @@ class UI(QWidget):
         else:
             self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
 
-        scheduler_current_flow_rate_label = QLabel('Current flow rate per MFC: ')
-        self.scheduler_current_flow_rate = QLineEdit()
-        self.scheduler_current_flow_rate.setReadOnly(True)
-        self.scheduler_current_flow_rate.setEnabled(False)
-        self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:])) # there is this same line in workers...
-
-        scheduler_current_temperature_label = QLabel('Current temperature setpoint per region: ')
-        self.scheduler_current_temperature = QLineEdit()
-        self.scheduler_current_temperature.setReadOnly(True)
-        self.scheduler_current_temperature.setEnabled(False)
-        self.scheduler_current_temperature.setText(str(self.scheduler_data[0][1:]))     
+        scheduler_current_state_label = QLabel('Current state per region: ')
+        self.scheduler_current_state = QLineEdit()
+        self.scheduler_current_state.setReadOnly(True)
+        self.scheduler_current_state.setEnabled(False)
+        self.scheduler_current_state.setText(str(self.scheduler_data[0][1:]))      
 
         self.scheduler_text_layout.addWidget(scheduler_current_time_label, 0, 0)
         self.scheduler_text_layout.addWidget(self.scheduler_current_time, 0, 1)
-        if self.mfc_temperature_checkbox.isChecked():
-            self.scheduler_text_layout.addWidget(scheduler_current_temperature_label, 1, 0)
-        else:
-            self.scheduler_text_layout.addWidget(scheduler_current_flow_rate_label, 1, 0)
-        self.scheduler_text_layout.addWidget(self.scheduler_current_flow_rate, 1, 1)
+        self.scheduler_text_layout.addWidget(scheduler_current_state_label, 1, 0)
+        self.scheduler_text_layout.addWidget(self.scheduler_current_state, 1, 1)
 
         self.scheduler_filename = QFileDialog.getOpenFileName(self, 'Choose scheduler file', os.path.expanduser('~'), 'Text files (*.csv)')[0]
-
-        if self.mfc_temperature_checkbox.isChecked():
-            self.create_temperature_section()
-            
-
 
         if len(self.scheduler_filename) < 1:
             scheduler_file_line.setText('File not chosen. Please, choose a file with scheduling information.')
@@ -710,10 +710,7 @@ class UI(QWidget):
                 self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
                 self.scheduler_change_time = -1
 
-            if self.mfc_temperature_checkbox.isChecked():
-                self.scheduler_current_temperature.setText(str(self.scheduler_data[0][1:]))
-            else:
-                self.scheduler_current_flow_rate.setText(str(self.scheduler_data[0][1:]))
+            self.scheduler_current_state.setText(str(self.scheduler_data[0][1:]))
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''
@@ -765,6 +762,7 @@ class UI(QWidget):
 
     def clear_layout(self, layout):
         '''Function to delete all layouts from a parent layout'''
+
         while layout.count():
             item = layout.takeAt(0)
             widget = item.widget()
@@ -777,10 +775,10 @@ class UI(QWidget):
             # If the item is a layout, recursively clear it
             elif child_layout is not None:
                 self.clear_layout(child_layout)
-            
-            # Delete the layout item itself
-        layout.removeItem(item)
-
+        
+        # Delete the layout item itself
+        # layout.removeItem(item)
+    
     def toggle_save_mode(self):
         '''Save mode. Called when toggled'''
 

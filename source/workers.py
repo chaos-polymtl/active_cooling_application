@@ -51,7 +51,7 @@ class MeasureAndControlWorker(QObject):
             # TODO: Add other MFCS
             for j in range(self.application.n_region):
                 # Calculate flow rate increment from PID controller
-                pid_output = self.application.PID[j].compute_output(temperature_average[j], temperature_setpoint[j], time_step, current_flow_rate[j])
+                pid_output = self.application.PID[j].compute_output(temperature_average[j], temperature_setpoint[j], time_step, current_flow_rate[j], decoupler = self.application.UI.decoupler_checkbox.isChecked())
 
                 self.application.MFC.set_flow_rate(j, pid_output)
 
@@ -74,9 +74,7 @@ class MeasureAndControlWorker(QObject):
                     self.application.UI.scheduler_change_time = -1
                     self.application.UI.scheduler_current_time.setText(str(self.application.UI.scheduler_data[0][0]) + " --- end")
 
-                self.application.UI.scheduler_current_flow_rate.setText(str(self.application.UI.scheduler_data[0][1:])) # there is this same line in UI...
-            
-            
+                self.application.UI.scheduler_current_state.setText(str(self.application.UI.scheduler_data[0][1:]))         
                                                        
             for j in range(self.application.n_region):
                 if self.application.UI.mfc_temperature_checkbox.isChecked():

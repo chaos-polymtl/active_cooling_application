@@ -21,7 +21,7 @@ class PIDControl:
         self.output = 0
         self.integral_error = 0
 
-    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 5, flow_rate_saturation_max = 300, output_min = 0, output_max = 300):
+    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 5, flow_rate_saturation_max = 300, output_min = 0, output_max = 300, decoupler = False):
         Kp = self.gains[0]
         Ki = self.gains[1]
         Kd = self.gains[2]
@@ -33,6 +33,13 @@ class PIDControl:
             
         else:
             error = 0
+
+        if decoupler:
+            decoupling_matrix = np.array([[1, 0.0],
+                                           [0.0, 1]])
+            # Apply Decoupling if matrix is provided
+            decoupling_effect = sum(decoupling_matrix * current_flow_rate)  # Weighted sum of interactions
+            error -= decoupling_effect  # Subtract the effect of other actuators
 
         # Update integral errors
         # Only update if not saturated
