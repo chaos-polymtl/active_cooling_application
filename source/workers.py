@@ -79,8 +79,10 @@ class MeasureAndControlWorker(QObject):
             
                                                        
             for j in range(self.application.n_region):
-                self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
-                self.application.UI.temperature_setpoint[j] = scheduled_temperature_setpoints[j]
+                if self.application.UI.mfc_temperature_checkbox.isChecked():
+                    self.application.UI.temperature_setpoint[j] = scheduled_temperature_setpoints[j]
+                else:
+                    self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
                 
 
                             
