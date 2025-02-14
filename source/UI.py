@@ -532,12 +532,13 @@ class UI(QWidget):
 
             # Add entry line for the current temperature
             self.temperature_input[i] = QLineEdit()
-
+        
             # Connect temperature entry to temperature setter
             self.temperature_input[i].returnPressed.connect(self.set_temperature)
             
-            # Add temperature widget to control layout
-            current_temperature_horizontal_layout.addWidget(self.temperature_input[i])
+            if not self.scheduler_checkbox.isChecked():
+                # Add temperature widget to control layout
+                current_temperature_horizontal_layout.addWidget(self.temperature_input[i])
 
             # Create a QLineEdit widget to display entered text
             self.temperature_display[i] = QLineEdit()
@@ -545,8 +546,9 @@ class UI(QWidget):
             self.temperature_display[i].setEnabled(False)
             self.temperature_display[i].setText('---')
 
-            # Add temperature display widget to the layout
-            current_temperature_horizontal_layout.addWidget(self.temperature_display[i])
+            if not self.scheduler_checkbox.isChecked():
+                # Add temperature display widget to the layout
+                current_temperature_horizontal_layout.addWidget(self.temperature_display[i])
 
             # Add PID to current temperature layout
             self.create_pid_section(region = i, current_temperature_layout = current_temperature_layout)
@@ -684,6 +686,11 @@ class UI(QWidget):
 
         self.scheduler_filename = QFileDialog.getOpenFileName(self, 'Choose scheduler file', os.path.expanduser('~'), 'Text files (*.csv)')[0]
 
+        if self.mfc_temperature_checkbox.isChecked():
+            self.create_temperature_section()
+            
+
+
         if len(self.scheduler_filename) < 1:
             scheduler_file_line.setText('File not chosen. Please, choose a file with scheduling information.')
             return
@@ -817,8 +824,8 @@ class UI(QWidget):
                 header += f', mfc_{i}'
 
             # Add Temperature headers
-            for i in range(self.n_region):
-                header += f', temperature_{i}'
+                for i in range(self.n_region):
+                    header += f', temperature_{i}'
 
             # Executes if temperature control mode is enabled (be sure to create file and save data after clicking the checkbox)
             if self.mfc_temperature_checkbox.isChecked():
