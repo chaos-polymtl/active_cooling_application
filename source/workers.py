@@ -39,28 +39,38 @@ class MeasureAndControlWorker(QObject):
 
     def apply_control(self):
         '''Apply PID control to MFCs flow rate'''
+        
         if self.application.UI.mfc_temperature_checkbox.isChecked():
-
             current_flow_rate = self.application.MFC.flow_rate
             temperature_average = self.application.temperature.temperature_average
             temperature_setpoint = self.application.UI.temperature_setpoint
             time_step = self.application.time_step
             self.application.UI.time_step = self.application.time_step
-            
+
+            # Initialize a list to store pid_output for each region
+            pid_outputs = np.zeros(self.application.n_region)
+
             # Apply flow rate increment to MFCs
-            # TODO: Add other MFCS
             for j in range(self.application.n_region):
                 # Calculate flow rate increment from PID controller
                 pid_output = self.application.PID[j].compute_output(temperature_average[j], temperature_setpoint[j], time_step, current_flow_rate[j])
-
-                self.application.MFC.set_flow_rate(j, pid_output)
+                pid_outputs[j] = pid_output
+                if not self.application.UI.decoupler_checkbox.isChecked():
+                    self.application.MFC.set_flow_rate(j, pid_output)
+            
+            # Apply decoupling terms if decoupler is enabled
+            if self.application.UI.decoupler_checkbox.isChecked():
+                for j in range(self.application.n_region):
+                    decoupled_output = self.application.decouplers.compute_decoupled_output(pid_outputs)
+                    self.application.MFC.set_flow_rate(j, decoupled_output[j])
 
     def apply_scheduler(self):
-        '''Apply scheduler to MFCs flow rate'''    
+        '''Apply scheduler to MFC flow rates and temperature setpoints'''    
 
         if self.application.UI.scheduler_checkbox.isChecked() and len(self.application.UI.scheduler_filename) > 1:
             change_time = self.application.UI.scheduler_change_time
             scheduled_flow_rates = self.application.UI.scheduler_data[0][1:]
+            scheduled_temperature_setpoints = self.application.UI.scheduler_data[0][1:]
             
             if change_time > 0 and self.application.time >= change_time:
                 self.application.UI.scheduler_data = np.delete(self.application.UI.scheduler_data, axis = 0, obj = 0)
@@ -73,10 +83,14 @@ class MeasureAndControlWorker(QObject):
                     self.application.UI.scheduler_change_time = -1
                     self.application.UI.scheduler_current_time.setText(str(self.application.UI.scheduler_data[0][0]) + " --- end")
 
-                self.application.UI.scheduler_current_flow_rate.setText(str(self.application.UI.scheduler_data[0][1:]))                                        
-
+                self.application.UI.scheduler_current_state.setText(str(self.application.UI.scheduler_data[0][1:]))         
+                                                       
             for j in range(self.application.n_region):
-                self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
+                if self.application.UI.mfc_temperature_checkbox.isChecked():
+                    self.application.UI.temperature_setpoint[j] = scheduled_temperature_setpoints[j]
+                else:
+                    self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
+                
 
                             
     def start_threads(self):
