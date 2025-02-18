@@ -39,8 +39,8 @@ class MeasureAndControlWorker(QObject):
 
     def apply_control(self):
         '''Apply PID control to MFCs flow rate'''
+        
         if self.application.UI.mfc_temperature_checkbox.isChecked():
-
             current_flow_rate = self.application.MFC.flow_rate
             temperature_average = self.application.temperature.temperature_average
             temperature_setpoint = self.application.UI.temperature_setpoint
@@ -56,11 +56,12 @@ class MeasureAndControlWorker(QObject):
                 self.application.MFC.set_flow_rate(j, pid_output)
 
     def apply_scheduler(self):
-        '''Apply scheduler to MFCs flow rate'''    
+        '''Apply scheduler to MFC flow rates and temperature setpoints'''    
 
         if self.application.UI.scheduler_checkbox.isChecked() and len(self.application.UI.scheduler_filename) > 1:
             change_time = self.application.UI.scheduler_change_time
             scheduled_flow_rates = self.application.UI.scheduler_data[0][1:]
+            scheduled_temperature_setpoints = self.application.UI.scheduler_data[0][1:]
             
             if change_time > 0 and self.application.time >= change_time:
                 self.application.UI.scheduler_data = np.delete(self.application.UI.scheduler_data, axis = 0, obj = 0)
@@ -73,10 +74,14 @@ class MeasureAndControlWorker(QObject):
                     self.application.UI.scheduler_change_time = -1
                     self.application.UI.scheduler_current_time.setText(str(self.application.UI.scheduler_data[0][0]) + " --- end")
 
-                self.application.UI.scheduler_current_flow_rate.setText(str(self.application.UI.scheduler_data[0][1:]))                                        
-
+                self.application.UI.scheduler_current_state.setText(str(self.application.UI.scheduler_data[0][1:]))         
+                                                       
             for j in range(self.application.n_region):
-                self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
+                if self.application.UI.mfc_temperature_checkbox.isChecked():
+                    self.application.UI.temperature_setpoint[j] = scheduled_temperature_setpoints[j]
+                else:
+                    self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
+                
 
                             
     def start_threads(self):
