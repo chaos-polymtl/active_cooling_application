@@ -51,7 +51,7 @@ class MeasureAndControlWorker(QObject):
             # TODO: Add other MFCS
             for j in range(self.application.n_region):
                 # Calculate flow rate increment from PID controller
-                pid_output = self.application.PID[j].compute_output(temperature_average[j], temperature_setpoint[j], time_step, current_flow_rate[j], decoupler = self.application.UI.decoupler_checkbox.isChecked())
+                pid_output = self.application.PID[j].compute_output(temperature_average[j], temperature_setpoint[j], time_step, current_flow_rate[j])
 
                 self.application.MFC.set_flow_rate(j, pid_output)
 
