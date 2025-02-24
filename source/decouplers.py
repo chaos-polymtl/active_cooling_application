@@ -25,10 +25,11 @@ class decouplers:
 
         self.output = np.zeros(len(pid_outputs))
 
-        g_MFC0_T1 = -1.21
-        g_MFC1_T0 = -0.88
+        # Decoupling terms
+        g_T0_MFC1 = -0.98
+        g_T1_MFC0 = -0.97
         
-        decoupling_terms = [g_MFC1_T0, g_MFC0_T1]
+        decoupling_terms = [g_T0_MFC1, g_T1_MFC0]
         for i in range(len(pid_outputs)):
             decoupler_output = decoupling_terms[i]*pid_outputs[1 - i]
             self.output[i] = pid_outputs[i] + decoupler_output
