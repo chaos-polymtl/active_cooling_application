@@ -30,7 +30,6 @@ class PIDControl:
             error = 0
         elif setpoint < 1000:
             error = current_temperature - setpoint
-            
         else:
             error = 0
 
@@ -38,14 +37,13 @@ class PIDControl:
         # Only update if not saturated
         if current_flow_rate <= flow_rate_saturation_min or current_flow_rate >= flow_rate_saturation_max:
             self.integral_error = self.integral_error
-            
         else:
-            self.integral_error += error
+            self.integral_error += error*time_step
 
         # Update derivative
         derivative = (error - self.previous_error) / time_step
 
-        self.output = error * Kp + Ki * self.integral_error * time_step + Kd * derivative
+        self.output += Kp * error + Ki * self.integral_error + Kd * derivative # Mikaels feeling (considering the delta mass flow output)
         self.previous_error = error
 
         self.output = min(output_max, max(output_min, self.output))
