@@ -577,7 +577,7 @@ class UI(QWidget):
         current_temperature_layout.addWidget(title)
 
         # Add PID controller gains setter area
-        control_parameter_names = ["Proportional: ", "Integral: ", "Differential: "]
+        control_parameter_names = ["Proportional: ", "Integral: ", "Derivative: "]
         controller_parameter_edit_layout = QVBoxLayout()
         current_temperature_layout.addLayout(controller_parameter_edit_layout)
 
