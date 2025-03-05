@@ -42,7 +42,7 @@ class PIDControl:
         # Update derivative
         derivative = (error - self.previous_error) / time_step
 
-        self.output = Kp * error + Ki * self.integral_error + Kd * derivative # Mikaels feeling (considering the delta mass flow output)
+        self.output = Kp * error + Ki * self.integral_error + Kd * derivative 
         self.previous_error = error
 
         self.output = min(output_max, max(output_min, self.output))

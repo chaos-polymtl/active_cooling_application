@@ -21,11 +21,11 @@ class decouplers:
     def compute_decoupled_output(self, pid_outputs):
         '''Compute decoupled output for each controller'''
         # Currently only works for 2 controller inputs
-        # TODO - Implement for n controller inputs
 
         self.output = np.zeros(len(pid_outputs))
 
-        # Decoupling terms
+        # Decoupling terms (must be recalculated for each new arrangement of controllers)
+        # Current arrangement: oixio (o = output, i = input, x = closed)
         g_T0_MFC1 = -0.98
         g_T1_MFC0 = -0.97
         
