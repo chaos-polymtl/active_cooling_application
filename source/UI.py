@@ -263,8 +263,12 @@ class UI(QWidget):
      
 
         self.decoupler_checkbox = QCheckBox('Decoupler', self)
+        self.decoupler_checkbox.setVisible(False)  # Initially hidden
         
         mfc_temperature_selector.addWidget(self.decoupler_checkbox)
+        
+        # Show decoupler checkbox only if temperature control mode is selected
+        self.mfc_temperature_checkbox.toggled.connect(lambda: self.decoupler_checkbox.setVisible(self.mfc_temperature_checkbox.isChecked()))
         
         # Add checkbox to main layout
         self.layout.addLayout(mfc_temperature_selector)
