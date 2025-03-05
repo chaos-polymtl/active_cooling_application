@@ -260,11 +260,12 @@ class UI(QWidget):
         self.scheduler_checkbox.checkStateChanged.connect(self.toggle_scheduler)
 
         mfc_temperature_selector.addWidget(self.scheduler_checkbox)
+     
 
         self.decoupler_checkbox = QCheckBox('Decoupler', self)
         
         mfc_temperature_selector.addWidget(self.decoupler_checkbox)
-
+        
         # Add checkbox to main layout
         self.layout.addLayout(mfc_temperature_selector)
         
@@ -582,7 +583,7 @@ class UI(QWidget):
         current_temperature_layout.addWidget(title)
 
         # Add PID controller gains setter area
-        control_parameter_names = ["Proportional: ", "Integral: ", "Differential: "]
+        control_parameter_names = ["Proportional: ", "Integral: ", "Derivative: "]
         controller_parameter_edit_layout = QVBoxLayout()
         current_temperature_layout.addLayout(controller_parameter_edit_layout)
 

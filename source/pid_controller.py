@@ -30,6 +30,7 @@ class PIDControl:
             error = 0
         elif setpoint < 1000:
             error = current_temperature - setpoint
+            
         else:
             error = 0
 
