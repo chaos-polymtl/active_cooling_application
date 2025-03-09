@@ -46,14 +46,23 @@ class MeasureAndControlWorker(QObject):
             temperature_setpoint = self.application.UI.temperature_setpoint
             time_step = self.application.time_step
             self.application.UI.time_step = self.application.time_step
-            
+
+            # Initialize a list to store pid_output for each region
+            pid_outputs = np.zeros(self.application.n_region)
+
             # Apply flow rate increment to MFCs
-            # TODO: Add other MFCS
             for j in range(self.application.n_region):
                 # Calculate flow rate increment from PID controller
                 pid_output = self.application.PID[j].compute_output(temperature_average[j], temperature_setpoint[j], time_step, current_flow_rate[j])
-
-                self.application.MFC.set_flow_rate(j, pid_output)
+                pid_outputs[j] = pid_output
+                if not self.application.UI.decoupler_checkbox.isChecked():
+                    self.application.MFC.set_flow_rate(j, pid_output)
+            
+            # Apply decoupling terms if decoupler is enabled
+            if self.application.UI.decoupler_checkbox.isChecked():
+                for j in range(self.application.n_region):
+                    decoupled_output = self.application.decouplers.compute_decoupled_output(pid_outputs)
+                    self.application.MFC.set_flow_rate(j, decoupled_output[j])
 
     def apply_scheduler(self):
         '''Apply scheduler to MFC flow rates and temperature setpoints'''    

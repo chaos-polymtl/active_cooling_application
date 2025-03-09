@@ -14,38 +14,24 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 
 import numpy as np
 
-class PIDControl:
+class decouplers:
     def __init__(self):
-        self.previous_error = 0
-        self.gains = np.zeros(3)
         self.output = 0
-        self.integral_error = 0
 
-    def compute_output(self, current_temperature, setpoint, time_step, current_flow_rate, flow_rate_saturation_min = 5, flow_rate_saturation_max = 300, output_min = 0, output_max = 300):
-        Kp = self.gains[0]
-        Ki = self.gains[1]
-        Kd = self.gains[2]
+    def compute_decoupled_output(self, pid_outputs):
+        '''Compute decoupled output for each controller'''
+        # Currently only works for 2 controller inputs
 
-        if setpoint is None or isinstance(setpoint, int):
-            error = 0
-        elif setpoint < 1000:
-            error = current_temperature - setpoint
-            
-        else:
-            error = 0
+        self.output = np.zeros(len(pid_outputs))
 
-        # Update integral errors (only update if not saturated)
-        if current_flow_rate <= flow_rate_saturation_min or current_flow_rate >= flow_rate_saturation_max:
-            self.integral_error = self.integral_error
-        else:
-            self.integral_error += error*time_step
-
-        # Update derivative
-        derivative = (error - self.previous_error) / time_step
-
-        self.output = Kp * error + Ki * self.integral_error + Kd * derivative 
-        self.previous_error = error
-
-        self.output = min(output_max, max(output_min, self.output))
+        # Decoupling terms (must be recalculated for each new arrangement of controllers)
+        # Current arrangement: oixio (o = output, i = input, x = closed)
+        g_T0_MFC1 = -0.98
+        g_T1_MFC0 = -0.97
+        
+        decoupling_terms = [g_T0_MFC1, g_T1_MFC0]
+        for i in range(len(pid_outputs)):
+            decoupler_output = decoupling_terms[i]*pid_outputs[1 - i]
+            self.output[i] = pid_outputs[i] + decoupler_output
 
         return self.output

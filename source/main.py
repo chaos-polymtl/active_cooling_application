@@ -9,6 +9,7 @@ from source.UI import UI
 from source.temperature import Temperature
 from source.mass_flow_controller import MFC
 from source.pid_controller import PIDControl
+from source.decouplers import decouplers
 from source.workers import MeasureAndControlWorker
 
 class Application(QMainWindow):
@@ -39,6 +40,8 @@ class Application(QMainWindow):
         self.PID = []
         for j in range(n_region):
             self.PID.append(PIDControl())
+        
+        self.decouplers = decouplers()
 
         # Create UI instance
         self.UI = UI()

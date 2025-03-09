@@ -260,6 +260,15 @@ class UI(QWidget):
         self.scheduler_checkbox.checkStateChanged.connect(self.toggle_scheduler)
 
         mfc_temperature_selector.addWidget(self.scheduler_checkbox)
+     
+
+        self.decoupler_checkbox = QCheckBox('Decoupler', self)
+        self.decoupler_checkbox.setVisible(False)  # Initially hidden
+        
+        mfc_temperature_selector.addWidget(self.decoupler_checkbox)
+        
+        # Show decoupler checkbox only if temperature control mode is selected
+        self.mfc_temperature_checkbox.toggled.connect(lambda: self.decoupler_checkbox.setVisible(self.mfc_temperature_checkbox.isChecked()))
         
         # Add checkbox to main layout
         self.layout.addLayout(mfc_temperature_selector)
@@ -436,6 +445,7 @@ class UI(QWidget):
 
     def create_mfc_section(self):
         '''Create MFC section'''
+
         # Create layout for MFCs
         self.mfc_edit_layout = QGridLayout()
 
@@ -795,7 +805,6 @@ class UI(QWidget):
 
         if len(self.filename) < 1:
             self.save_file_widget.setText('File not chosen. Please, choose a file to save data.')
-
             return
 
         if '.csv' not in self.filename:
@@ -818,8 +827,8 @@ class UI(QWidget):
                 header += f', mfc_{i}'
 
             # Add Temperature headers
-            for i in range(self.n_region):
-                header += f', temperature_{i}'
+                for i in range(self.n_region):
+                    header += f', temperature_{i}'
 
             # Executes if temperature control mode is enabled (be sure to create file and save data after clicking the checkbox)
             if self.mfc_temperature_checkbox.isChecked():
