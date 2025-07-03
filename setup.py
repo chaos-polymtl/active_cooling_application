@@ -24,7 +24,7 @@ setup(
     name="active_cooling_experimental",
     version="0.1.0",
     description="Project destinated to store code and scheme for experimental setup of the active cooling project.",
-    author="Bruno Blais",
+    author=["Bruno Blais", "Moncef Chioua", "Victor Oliveira Ferreira", "Antoine Hamel", "Jean-Michel Lamarre", "Wiebke Mainville", "Vincent Raymond", "Mikael Vaillant"], # In alphabetical order
     author_email="bruno.blais@polymtl.ca",
     url="https://github.com/chaos-polymtl/active_cooling_experimental",
     packages=find_packages(include=["*","source", "source.*"]),
