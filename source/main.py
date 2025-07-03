@@ -6,6 +6,7 @@ import os
 import numpy as np
 
 from source.UI import UI
+from source.solenoid_valve import Solenoid
 from source.temperature import Temperature
 from source.mass_flow_controller import MFC
 from source.pid_controller import PIDControl
@@ -13,7 +14,7 @@ from source.decouplers import decouplers
 from source.workers import MeasureAndControlWorker
 
 class Application(QMainWindow):
-    def __init__(self, n_region=2, test_UI=False):
+    def __init__(self, n_region=1, test_UI=False):
         super().__init__()
 
         self.n_region = n_region
@@ -30,6 +31,9 @@ class Application(QMainWindow):
         window_icon = QIcon(f"{application_dir}/nrc.png")
         self.setWindowIcon(window_icon)
 
+        # Create solenoid valve instance
+        self.solenoid = Solenoid(n_region, self.test_UI)
+
         # Create temperature instance
         self.temperature = Temperature(n_region, self.test_UI)
 
@@ -45,7 +49,7 @@ class Application(QMainWindow):
 
         # Create UI instance
         self.UI = UI()
-        self.UI.init_UI(temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
+        self.UI.init_UI(solenoid = self.solenoid, temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
         self.setCentralWidget(self.UI)
         
         self.measure_and_control_thread = QThread()
@@ -67,13 +71,17 @@ class Application(QMainWindow):
         for j in range(self.n_region):
             self.MFC.set_flow_rate(j, 0)
 
+        # Zero solenoid state
+        for j in range(self.n_region):
+            self.solenoid.set_solenoid_state(j, False)
+
         # Allow the application to close
         event.accept()
 
     @staticmethod
     def run():
         app = QApplication(sys.argv)        
-        n_region = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+        n_region = 10 #int(sys.argv[1]) if len(sys.argv) > 1 else 10
         window = Application(n_region=n_region)
         window.show()
         sys.exit(app.exec())

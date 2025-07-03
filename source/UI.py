@@ -63,7 +63,7 @@ plt.rcParams['font.size'] = '12'
 # ================== User interface ==================
 class UI(QWidget):
     # Create user interface
-    def init_UI(self, temperature, MFC, PID, n_region, test_UI = False):       
+    def init_UI(self, solenoid, temperature, MFC, PID, n_region, test_UI = False):       
 
         # Set lower limit to temperature setpoint
         # TODO: make widget for this
@@ -77,6 +77,7 @@ class UI(QWidget):
         # Set number of controller parameters
         self.n_controller_parameters = 3
 
+        self.solenoid = solenoid
         self.temperature = temperature
         self.MFC = MFC
         self.PID = PID
@@ -167,6 +168,26 @@ class UI(QWidget):
         # Add save file layout to main layout
         self.layout.addLayout(save_file_layout)
 
+        # ================== Set solenoid section ==================
+        # Set solenoid valve section
+        title = QLabel("Solenoid I/O: ")
+        self.layout.addWidget(title)
+
+        # Create a layout for MFC temperature selector
+        solenoid_selector = QHBoxLayout()
+
+        # Create a checkbox for each solenoid valve with their number on it
+        self.solenoid_checkbox = []
+        for i in range(n_region):
+
+            checkbox = QCheckBox(f'{i}', self)
+            checkbox.setChecked(False)
+            checkbox.stateChanged.connect(lambda state=checkbox.isChecked, solenoid_id=i: self.toggle_solenoid_checkbox(solenoid_id, state))
+            solenoid_selector.addWidget(checkbox)
+            self.solenoid_checkbox.append(checkbox)
+        
+        self.layout.addLayout(solenoid_selector)
+
         # ================== Set region boundaries section ==================
 
         # Create region_boundaries selection
@@ -215,10 +236,9 @@ class UI(QWidget):
             line_edit = QLineEdit()
 
             # Add region boundary entry to the array
-            self.region_boundaries_input[i] = line_edit
+            line_edit.returnPressed.connect(lambda region=i: self.set_region_boundaries(region))
 
-            # Connect region boundary entry to region boundary setter
-            self.region_boundaries_input[i].returnPressed.connect(self.set_region_boundaries)
+            self.region_boundaries_input[i] = line_edit
 
             # Add region boundary widget to control layout
             region_boundaries_layout.addWidget(boundaries_titles[i])
@@ -407,9 +427,10 @@ class UI(QWidget):
         self.patches = []
         
         # Create a array of time, flow rate, temperature and temperature setpoints for plotting
-        self.time_plot = np.zeros(self.n_plot_points)
-        self.flow_rate_plot = np.zeros((n_region, self.n_plot_points))
-        self.temperature_plot = np.zeros((n_region, self.n_plot_points))
+        self.time_plot = np.array([])
+        self.flow_rate_plot = np.empty((n_region, 0))
+        self.temperature_plot = np.empty((n_region, 0))
+        self.temperature_setpoint_plot = np.empty_like(self.temperature_plot)
 
         # Create a list of patches to draw the regions from selector in heatmap
         for i in range(n_region):
@@ -421,11 +442,12 @@ class UI(QWidget):
             self.temperature_image.axes.add_patch(self.patches[i])
 
             # Create a canvas for the figure
-            self.ax[0].plot(self.time_plot, self.flow_rate_plot[i, :], '.', color = self.colors_qualitative[i])  # Plot new data
-            self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors_qualitative[i], label = f'Region {i}')  # Plot new data
+            self.ax[0].plot(self.time_plot, self.flow_rate_plot[i, :], '.', color = self.colors_qualitative[i])
+            self.ax[2].plot(self.time_plot, self.temperature_plot[i, :], '.', color = self.colors_qualitative[i], label = f'Region {i}')
+            self.ax[2].plot(self.time_plot, self.temperature_setpoint_plot[i, :], '--', color = self.colors_qualitative[i])
 
         # Place legend outside of the plot
-        lines = self.ax[2].get_lines()
+        lines = self.ax[2].get_lines()[::2]  # Get only the solid lines (temperature)
         labels = [i.get_label() for i in lines]
         self.ax[3].axis('off')
         self.ax[3].legend(lines, labels, loc = 'center')
@@ -433,6 +455,8 @@ class UI(QWidget):
         # Create a canvas for the figure
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setMinimumHeight(300)
+        self.canvas.draw()
+        self.figs_backgrounds = [self.canvas.copy_from_bbox(ax.bbox) for ax in [self.ax[0], self.ax[2]]]
 
         # Add canvas to layout
         self.layout.addWidget(self.canvas)
@@ -474,7 +498,7 @@ class UI(QWidget):
 
             # Add entry line for the current MFC
             self.mfc_input[i] = QLineEdit()
-            self.mfc_input[i].returnPressed.connect(self.set_mfc)
+            self.mfc_input[i].returnPressed.connect(lambda region=i: self.set_mfc(region))
             current_mfc_horizontal_layout.addWidget(self.mfc_input[i])
 
             # Create a line widget to display entered text
@@ -509,8 +533,7 @@ class UI(QWidget):
         self.temperature_mfc_edit_layout.addLayout(temperature_edit_layout)
         
         # Create array for temperature setpoints
-        dummy_large_temperature_setpoint = 100000000
-        self.temperature_setpoint = np.repeat(dummy_large_temperature_setpoint, self.n_region)
+        self.temperature_setpoint = np.repeat(None, self.n_region)
 
         # Create temperature input and display widgets
         self.temperature_input = np.empty(self.n_region, dtype=QLineEdit)
@@ -532,19 +555,19 @@ class UI(QWidget):
             # Layout for the current temperature section
             current_temperature_layout = QVBoxLayout()
 
-            # Title of the temperature
-            title = QLabel(f"Temperature {i}: ")
-            current_temperature_layout.addWidget(title)
-
             # Horizontal layout for temperature input and display
             current_temperature_horizontal_layout = QHBoxLayout()
             current_temperature_layout.addLayout(current_temperature_horizontal_layout)
+
+            # Title of the temperature
+            title = QLabel(f"T{i}: ")
+            current_temperature_horizontal_layout.addWidget(title)
 
             # Add entry line for the current temperature
             self.temperature_input[i] = QLineEdit()
         
             # Connect temperature entry to temperature setter
-            self.temperature_input[i].returnPressed.connect(self.set_temperature)
+            self.temperature_input[i].returnPressed.connect(lambda region=i:self.set_temperature(region))
             
             # Add temperature widget to control layout
             current_temperature_horizontal_layout.addWidget(self.temperature_input[i])
@@ -582,12 +605,9 @@ class UI(QWidget):
 
 
     def create_pid_section(self, region, current_temperature_layout):
-        # Add PID controller section to main layout
-        title = QLabel("PID parameters: ")
-        current_temperature_layout.addWidget(title)
 
         # Add PID controller gains setter area
-        control_parameter_names = ["Proportional: ", "Integral: ", "Derivative: "]
+        control_parameter_names = ["P: ", "I: ", "D: "]
         controller_parameter_edit_layout = QVBoxLayout()
         current_temperature_layout.addLayout(controller_parameter_edit_layout)
 
@@ -608,7 +628,7 @@ class UI(QWidget):
             
             # Set parameter upon changing value
             # When value is changed, set the parameter using the function set_pid_gains
-            self.pid_input[region][i].returnPressed.connect(self.set_pid_gains)
+            self.pid_input[region][i].returnPressed.connect(lambda region=region, parameter=i: self.set_pid_gains(region, parameter))
 
             # Add PID widget to control layout
             controller_gain_edit_layout.addWidget(controller_parameter_title)
@@ -654,6 +674,11 @@ class UI(QWidget):
                     self.temperature_display[i].setText('---')
             else:
                 self.create_mfc_section()
+
+    def toggle_solenoid_checkbox(self, solenoid_id, toggled_solenoid_checkbox):
+        '''Triggers solenoid state switch'''
+        self.solenoid.set_solenoid_state(solenoid_id, self.solenoid_checkbox[solenoid_id].isChecked())
+
 
     def create_scheduler_section(self):
         '''Create scheduler section'''
@@ -760,8 +785,7 @@ class UI(QWidget):
 
         if self.mfc_temperature_checkbox.isChecked():
             self.create_temperature_section()
-            self.setpoint_plot = np.full((self.n_region, self.n_plot_points), np.nan)  # Initialize with NaN
-            self.valid_temperature_setpoint = np.full(self.n_region, False)  # Track validity of setpoints
+            self.temperature_setpoint_plot = np.empty_like(self.temperature_plot)
         else:
             self.create_mfc_section()
 
@@ -856,96 +880,87 @@ class UI(QWidget):
             file.write(header)
             
 
-    def set_pid_gains(self):
+    def set_pid_gains(self, region, parameter):
         '''Set PID controller gains'''
 
         # Set controller parameters
-        for i in range(self.n_region):
-            for j in range(self.n_controller_parameters):
-                if len(self.pid_input[i][j].text()) > 0:
-                    self.PID[i].gains[j] = float(self.pid_input[i][j].text())
-                    self.pid_display[i][j].setText(self.pid_input[i][j].text())
-                    self.pid_input[i][j].clear()
+        if len(self.pid_input[region][parameter].text()) > 0:
+            self.PID[region].gains[parameter] = float(self.pid_input[region][parameter].text())
+            self.pid_display[region][parameter].setText(self.pid_input[region][parameter].text())
+            self.pid_input[region][parameter].clear()
 
         # Update display with gains of the current region
-        for i in range(self.n_region):
-            for j in range(self.n_controller_parameters):
-                self.pid_display[i][j].setText(str(self.PID[i].gains[j]))
+        self.pid_display[region][parameter].setText(str(self.PID[region].gains[parameter]))
         
 
-    def set_mfc(self):
+    def set_mfc(self, region):
         '''Set MFC flow rate upon changing value'''
-        for i in range(self.n_region):
+         # Only positive inputs are valid
+        if len(self.mfc_input[region].text()) > 0:
+            
+            # Set flow rate
+            self.MFC.set_flow_rate(region, float(self.mfc_input[region].text()))
 
-            # Only positive inputs are valid
-            # TODO: Limit maximum flow rate
-            if len(self.mfc_input[i].text()) > 0:
-                
-                # Set flow rate
-                self.MFC.set_flow_rate(i, float(self.mfc_input[i].text()))
-                
-                #Update display
-                self.mfc_display[i].setText(self.mfc_input[i].text())
-                
-                # Clear input line
-                self.mfc_input[i].clear()
+            print(f'Setting MFC {region} flow rate to {self.mfc_input[region].text()} L/min')
+            
+            #Update display
+            if int(self.mfc_input[region].text()) > 300:
+                self.mfc_display[region].setText(str(300))
+            elif int(self.mfc_input[region].text()) < 0:
+                self.mfc_display[region].setText(str(0))
+            else:
+                self.mfc_display[region].setText(self.mfc_input[region].text())
+            
+            # Clear input line
+            self.mfc_input[region].clear()
         
     # Set temperature setpoint
-    def set_temperature(self):
+    def set_temperature(self, region):
         '''Set temperature setpoint upon changing value
         Only works if temperature control mode is enabled
         '''
+        # Only positive inputs are valid
+        if len(self.temperature_input[region].text()) > 0:
 
-        # Set temperature setpoint for each region
-        for i in range(self.n_region):
-
-            # Only positive inputs are valid
-            if len(self.temperature_input[i].text()) > 0:
-
-                # Set temperature setpoint
-                self.temperature_setpoint[i] = float(self.temperature_input[i].text())
-
-                # Update display
-                self.temperature_display[i].setText(self.temperature_input[i].text())
-
-                # Clear input line
-                self.temperature_input[i].clear()
-            
-    
-    def set_region_boundaries(self, from_state_file = False):
-        '''Set region boundaries upon changing value'''
-
-        # For each corner of the region
-        for i in range(self.n_region_corners):
-
-            # Get information from file
-            if from_state_file:
-                text = self.load_region_boundaries[self.current_region][i]
-            
-            # Get text from input line
-            else:
-                text = self.region_boundaries_input[i].text()
-            
-                # If text is empty
-                if len(text) < 1:
-                    continue
-
-            # Only accept values within the resolution of the camera
-            if i in [0,2] and int(text) < 0: text = 0
-            if i == 1 and int(text) > self.temperature.resolution[1] - 1: text = self.temperature.resolution[1] - 1
-            if i == 3 and int(text) > self.temperature.resolution[0] - 1: text = self.temperature.resolution[0] - 1
-
-            # Set region boundaries
-            self.region_boundaries[self.current_region][i] = int(text)
-            
-            # Update patches in figure
-            self.update_patches()
+            # Set temperature setpoint
+            self.temperature_setpoint[region] = float(self.temperature_input[region].text())
 
             # Update display
-            self.region_boundaries_display[i].setText(str(self.region_boundaries[self.current_region][i]))
+            self.temperature_display[region].setText(self.temperature_input[region].text())
 
             # Clear input line
-            self.region_boundaries_input[i].clear()
+            self.temperature_input[region].clear()
+            
+    
+    def set_region_boundaries(self, region, from_state_file = False):
+        '''Set region boundaries upon changing value'''
+
+        
+        # Get information from file
+        if from_state_file:
+            for i in range(self.n_region_corners):
+                text = self.load_region_boundaries[self.current_region][i]
+        
+        # Get text from input line
+        else:
+            text = self.region_boundaries_input[region].text()
+
+        # Only accept values within the resolution of the camera
+        if region in [0,2] and int(text) < 0: text = 0
+        if region == 1 and int(text) > self.temperature.resolution[1] - 1: text = self.temperature.resolution[1] - 1
+        if region == 3 and int(text) > self.temperature.resolution[0] - 1: text = self.temperature.resolution[0] - 1
+
+        # Set region boundaries
+        self.region_boundaries[self.current_region][region] = int(text)
+        
+        # Update patches in figure
+        self.update_patches()
+
+        # Update display
+        self.region_boundaries_display[region].setText(str(self.region_boundaries[self.current_region][region]))
+
+        # Clear input line
+        self.region_boundaries_input[region].clear()
 
     def update_patches(self):
         '''Update patches in figure'''
@@ -970,36 +985,27 @@ class UI(QWidget):
             self.temperature_image.set_data(temperature.temperature_grid)
         
             # Update time array
-            self.time_plot = self.time_plot[1:]
-            self.time_plot = np.append(self.time_plot, time)
+            self.time_plot = np.append(self.time_plot, time)[-self.n_plot_points:]
 
             # Update flow rate array only if not in test_UI mode
-            self.flow_rate_plot = np.delete(self.flow_rate_plot, (0), axis = 1)
-            self.flow_rate_plot = np.append(self.flow_rate_plot, np.transpose([MFC.flow_rate]), axis = 1)
-
-            # Update temperature on plot        
-            self.temperature_plot = np.delete(self.temperature_plot, (0), axis = 1)
-            self.temperature_plot = np.append(self.temperature_plot, np.transpose([temperature.temperature_average]), axis = 1)
-
+            self.flow_rate_plot = np.append(self.flow_rate_plot, np.transpose([MFC.flow_rate]), axis=1)[:, -self.n_plot_points:]
+            self.temperature_plot = np.append(self.temperature_plot, np.transpose([temperature.temperature_average]), axis=1)[:, -self.n_plot_points:]
             if self.mfc_temperature_checkbox.isChecked():
-                self.setpoint_plot = np.delete(self.setpoint_plot, (0), axis=1)
+                # Ensure temperature_setpoint is a 1D array of length n_region
+                setpoint_col = np.array(self.temperature_setpoint, dtype=float).reshape(-1, 1)
+                self.temperature_setpoint_plot = np.append(self.temperature_setpoint_plot, setpoint_col, axis=1)[:, -self.n_plot_points:]
+            else:
+                self.temperature_setpoint_plot = np.empty_like(self.temperature_plot)
 
-                new_setpoint = np.full(self.n_region, np.nan)  # Default to NaN
-                for i in range(self.n_region):
-                    if self.temperature_setpoint[i] is not None and 0 <= self.temperature_setpoint[i] <= 1000:
-                        new_setpoint[i] = self.temperature_setpoint[i]
-                        self.valid_temperature_setpoint[i] = True  # Mark as valid
-                    else:
-                        self.valid_temperature_setpoint[i] = False  # Mark as invalid
-
-                self.setpoint_plot = np.append(self.setpoint_plot, np.transpose([new_setpoint]), axis=1)
-
-
-            # Update plot information per region 
             [self.update_single_plot(i) for i in range(self.n_region)]
 
-            # Update setpoint on plot
-            
+            # Update plot information per region 
+            for i, ax in enumerate([self.ax[0], self.ax[2]]):
+                # Update flow rate plot
+                self.canvas.restore_region(self.figs_backgrounds[i])
+                for line in ax.get_lines():
+                    ax.draw_artist(line)
+                self.canvas.blit(ax.bbox)
 
             # Update plot limits
             self.ax[0].relim()
@@ -1009,28 +1015,23 @@ class UI(QWidget):
             self.ax[0].autoscale_view()
             self.ax[2].autoscale_view()
         
-            # Draw the plot
-            self.canvas.draw_idle()
+        self.canvas.flush_events()
+        self.canvas.draw_idle()
 
     
     def update_single_plot(self, i):
         '''Update plot information per region'''
-
-        self.ax[0].get_children()[i].set_data(self.time_plot,self.flow_rate_plot[i, :])
-
-        # Update the temperature plot
-        self.ax[2].get_children()[i].set_data(self.time_plot,self.temperature_plot[i, :])
-
-        # Ensure the setpoint is plotted as a separate curve
-        if self.mfc_temperature_checkbox.isChecked() and self.valid_temperature_setpoint[i]:
-            if hasattr(self, 'setpoint_lines') and len(self.setpoint_lines) > i:
-                self.setpoint_lines[i].set_data(self.time_plot, self.setpoint_plot[i, :])
-            else:
-                if not hasattr(self, 'setpoint_lines'):
-                    self.setpoint_lines = []
-                line, = self.ax[2].plot(self.time_plot, self.setpoint_plot[i, :], '--', color=self.colors_qualitative[i], label=f'Setpoint {i}')
-                self.setpoint_lines.append(line)
-        
+        self.ax[0].get_lines()[i].set_data(self.time_plot, self.flow_rate_plot[i, :])
+        self.ax[2].get_lines()[2*i].set_data(self.time_plot, self.temperature_plot[i, :])
+        if self.mfc_temperature_checkbox.isChecked():
+            # Update temperature setpoint plot
+            self.ax[2].get_lines()[2*i + 1].set_visible(True)
+            self.ax[2].get_lines()[2*i + 1].set_color(self.ax[2].get_lines()[2*i].get_color())
+            self.ax[2].get_lines()[2*i + 1].set_linestyle('--')
+            self.ax[2].get_lines()[2*i + 1].set_data(self.time_plot, self.temperature_setpoint_plot[i, :])
+        else:
+            # Hide temperature setpoint plot
+            self.ax[2].get_lines()[2*i + 1].set_visible(False)
 
     def change_n_plot_points(self):
         '''Change number of points in the plot'''
@@ -1064,8 +1065,8 @@ class UI(QWidget):
                     self.temperature_plot = np.append(np.zeros((self.n_region, new_n_plot_points - self.n_plot_points)), self.temperature_plot, axis = 1)
 
                     # Update setpoint array
-                    if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0 and self.temperature_setpoint[i] < 1000:
-                        self.setpoint_plot = np.append(np.zeros((self.n_region, new_n_plot_points - self.n_plot_points)), self.setpoint_plot, axis = 1)
+                    if self.mfc_temperature_checkbox.isChecked():
+                        self.temperature_setpoint_plot = np.append(np.zeros((self.n_region, new_n_plot_points - self.n_plot_points)), self.temperature_setpoint_plot, axis = 1)
 
             elif new_n_plot_points < self.n_plot_points:
 
@@ -1073,8 +1074,8 @@ class UI(QWidget):
                 self.time_plot = self.time_plot[-new_n_plot_points:]
                 self.flow_rate_plot = self.flow_rate_plot[:, -new_n_plot_points:]
                 self.temperature_plot = self.temperature_plot[:, -new_n_plot_points:]
-                if self.mfc_temperature_checkbox.isChecked() and self.temperature_setpoint[i] >= 0 and self.temperature_setpoint[i] < 1000:
-                        self.setpoint_plot = self.setpoint_plot[:, -new_n_plot_points:]
+                if self.mfc_temperature_checkbox.isChecked():
+                        self.temperature_setpoint_plot = self.temperature_setpoint_plot[:, -new_n_plot_points:]
 
             # Update number of points
             self.n_plot_points = new_n_plot_points
@@ -1174,4 +1175,4 @@ class UI(QWidget):
             if isinstance(widget, QLabel):
                 widget.setFont(title_font)
 
-    
+
