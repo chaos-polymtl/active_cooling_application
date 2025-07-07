@@ -17,6 +17,7 @@ from PySide6.QtCore import QTimer, QElapsedTimer, QThread
 from PySide6.QtGui import QIcon
 import sys
 import os
+import argparse
 import numpy as np
 
 from source.UI import UI
@@ -94,17 +95,21 @@ class Application(QMainWindow):
 
     @staticmethod
     def run():
-        app = QApplication(sys.argv)        
-        n_region = 10 #int(sys.argv[1]) if len(sys.argv) > 1 else 10
-        window = Application(n_region=n_region)
+        app = QApplication(sys.argv)      
+        parser = argparse.ArgumentParser(description="Run the Active Cooling Experimental Application")
+        parser.add_argument("n_region", help="Number of regions", type=int, default=10, nargs='?')
+        args = parser.parse_args()
+        window = Application(n_region=args.n_region, test_UI=False)
         window.show()
         sys.exit(app.exec())
 
     @staticmethod
     def run_test():
         app = QApplication(sys.argv)
-        n_region = int(sys.argv[1]) if len(sys.argv) > 1 else 2
-        window = Application(n_region=n_region, test_UI=True)
+        parser = argparse.ArgumentParser(description="Run the Active Cooling Experimental Application on test mode")
+        parser.add_argument("n_region", help="Number of regions", type=int, default=10, nargs='?')
+        args = parser.parse_args()
+        window = Application(n_region=args.n_region, test_UI=True)
         window.show()
         sys.exit(app.exec())
 
