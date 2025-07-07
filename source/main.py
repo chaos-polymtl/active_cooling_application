@@ -42,7 +42,7 @@ class Application(QMainWindow):
             self.setStyleSheet(_style)
 
         # Set window icon
-        window_icon = QIcon(f"{application_dir}/nrc.png")
+        window_icon = QIcon(f"{application_dir}/chaos_logo_small.svg")
         self.setWindowIcon(window_icon)
 
         # Create solenoid valve instance

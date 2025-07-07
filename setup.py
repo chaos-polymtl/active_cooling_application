@@ -30,7 +30,7 @@ setup(
     packages=find_packages(include=["*","source", "source.*"]),
     include_package_data=True,
     package_data={
-        'source': ['style.qss', 'nrc.png'],         # Add style.qss here
+        'source': ['style.qss', 'chaos_logo_small.svg'],         # Add style.qss here
     },
     install_requires=parse_requirements('requirements.txt'),  # Load dependencies from requirements.txt
     entry_points={
