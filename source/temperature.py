@@ -1,5 +1,5 @@
 '''
-Copyright 2024-2025, the Active Cooling Experimental Application Authors
+Copyright 2024-2025, the Active Cooling Application Authors
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
