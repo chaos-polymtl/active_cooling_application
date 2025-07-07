@@ -2,7 +2,7 @@ BSD 3-Clause License
 
 This license applies only to the source code files contained in the current folder of this deposit, unless otherwise stated.
 
-Copyright (c) 2024-2025, the Active Cooling Experimental Application Authors
+Copyright (c) 2024-2025, the Active Cooling Application Authors
 All rights reserved.
 
 See the AUTHORS file for a full list of contributors.
@@ -17,7 +17,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-3. Neither the name of the Active Cooling Experimental Application Authors nor the names of its contributors
+3. Neither the name of the Active Cooling Application Authors nor the names of its contributors
    may be used to endorse or promote products derived from this software
    without specific prior written permission.
 

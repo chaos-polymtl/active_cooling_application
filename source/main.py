@@ -1,5 +1,5 @@
 '''
-Copyright 2024-2025, the Active Cooling Experimental Application Authors
+Copyright 2024-2025, the Active Cooling Application Authors
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
@@ -96,7 +96,7 @@ class Application(QMainWindow):
     @staticmethod
     def run():
         app = QApplication(sys.argv)      
-        parser = argparse.ArgumentParser(description="Run the Active Cooling Experimental Application")
+        parser = argparse.ArgumentParser(description="Run the Active Cooling Application")
         parser.add_argument("n_region", help="Number of regions", type=int, default=10, nargs='?')
         args = parser.parse_args()
         window = Application(n_region=args.n_region, test_UI=False)
@@ -106,7 +106,7 @@ class Application(QMainWindow):
     @staticmethod
     def run_test():
         app = QApplication(sys.argv)
-        parser = argparse.ArgumentParser(description="Run the Active Cooling Experimental Application on test mode")
+        parser = argparse.ArgumentParser(description="Run the Active Cooling Application on test mode")
         parser.add_argument("n_region", help="Number of regions", type=int, default=10, nargs='?')
         args = parser.parse_args()
         window = Application(n_region=args.n_region, test_UI=True)

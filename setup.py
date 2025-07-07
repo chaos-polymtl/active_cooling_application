@@ -1,5 +1,5 @@
 '''
-Copyright 2024-2025, the Active Cooling Experimental Application Authors
+Copyright 2024-2025, the Active Cooling Application Authors
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
@@ -21,12 +21,12 @@ def parse_requirements(filename):
         return [line.strip() for line in file if line.strip() and not line.startswith('#')]
 
 setup(
-    name="active_cooling_experimental",
+    name="active_cooling_application",
     version="1.0",
     description="Project destinated to store code and scheme for experimental setup of the active cooling project.",
     author=["Bruno Blais", "Moncef Chioua", "Victor Oliveira Ferreira", "Antoine Hamel", "Jean-Michel Lamarre", "Wiebke Mainville", "Vincent Raymond", "Mikael Vaillant"], # In alphabetical order
     author_email="bruno.blais@polymtl.ca",
-    url="https://github.com/chaos-polymtl/active_cooling_experimental",
+    url="https://github.com/chaos-polymtl/active_cooling_application",
     packages=find_packages(include=["*","source", "source.*"]),
     include_package_data=True,
     package_data={
@@ -35,8 +35,8 @@ setup(
     install_requires=parse_requirements('requirements.txt'),  # Load dependencies from requirements.txt
     entry_points={
         'console_scripts': [
-            'active-cooling-experiment=source.main:Application.run',  # Entry point for command line execution
-            'active-cooling-experiment-test=source.main:Application.run_test'
+            'active-cooling=source.main:Application.run',  # Entry point for command line execution
+            'active-cooling-test=source.main:Application.run_test'
         ],
     },
     classifiers=[
