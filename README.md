@@ -28,7 +28,7 @@ or
 <pre> pip3 install . </pre>
 
 
-## Testing the application
+## Test installation
 
 The application has a test mode, which is suitable for other Linux systems. This mode emulates the behavior of the application, using a dummy dataset instead of measuring quantities.
 
@@ -36,7 +36,7 @@ If you wish to verify your installation or run the application on test mode, lau
 
 <pre> active-cooling-test $NUMBER_OF_REGIONS </pre>
 
-## Launching the application
+## Launch application
 
 To launch the application, you can simply run:
 
