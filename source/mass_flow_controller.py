@@ -52,7 +52,7 @@ class MFC():
 			return
 		
 		n_points_ADC0 = min(8, self.n_region)
-		self.ADC_analog[:n_points_ADC0] = self.ADC[0].measure_voltage()
+		self.ADC_analog[:n_points_ADC0] = self.ADC[0].measure_voltage()[:n_points_ADC0]
 		if self.n_region > 8:
 			self.ADC_analog[n_points_ADC0:10] = self.ADC[1].measure_voltage()[:2]
 
