@@ -31,12 +31,18 @@ class MFC():
 		import board
 		import busio
 
-		i2c = busio.I2C(board.SCL, board.SDA)
+		self.i2c = board.I2C()
+		while not self.i2c.try_lock():
+			pass
+		self.i2c.unlock()
 			
 		self.ADC = [TLA2528(address=0x12), TLA2528(address=0x13)]
 		self.ADC_analog = np.zeros(n_region)
 	
-		self.DAC = [DACx578(i2c, address=0x48), DACx578(i2c, address=0x47)]
+		self.DAC0 = DACx578(self.i2c, address=0x48)
+		self.DAC1 = DACx578(self.i2c, address=0x47)	
+
+		self.DAC_region_channel = {0 : 0, 7 : 1, 1 : 2, 6 : 3, 2 : 4, 5 : 5, 3 : 6, 4 : 7, 8 : 0, 9 : 7}
 
 		self.n_region = n_region
 		self.flow_rate = np.zeros(n_region)
@@ -78,6 +84,7 @@ class MFC():
 			analog_input = 0.
 
 		if region < 8:
-			self.DAC[0].channels[region].normalized_value = analog_input / 5.
+			self.DAC0.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.
 		else:
-			self.DAC[1].channels[region - 8].normalized_value = analog_input / 5.
+			print(self.DAC_region_channel[region])
+			self.DAC1.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.
