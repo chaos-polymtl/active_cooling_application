@@ -47,6 +47,8 @@ class Temperature():
             self.temperature = self.thermal_cam.temperature
 
         self.temperature_grid = self.temperature.reshape(self.resolution[0], self.resolution[1])
+        self.temperature_grid = np.fliplr(self.temperature_grid) # Flip the image horizontally
+
 
     def get_temperature_average(self, n_region, region_boundaries):
             '''Get temperature average within regions'''
