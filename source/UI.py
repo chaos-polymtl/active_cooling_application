@@ -1003,13 +1003,10 @@ class UI(QWidget):
             for i, ax in enumerate([self.ax[0], self.ax[2]]):
                 # Update flow rate plot
 
-                ####### test to see if QPainter error is due to unsafe bitting
-                # self.canvas.restore_region(self.figs_backgrounds[i])
-                # for line in ax.get_lines():
-                #     ax.draw_artist(line)
-                # self.canvas.blit(ax.bbox)
-
-                self.canvas.draw() #this is what I added
+                self.canvas.restore_region(self.figs_backgrounds[i])
+                for line in ax.get_lines():
+                    ax.draw_artist(line)
+                self.canvas.blit(ax.bbox)
 
             # Update plot limits
             self.ax[0].relim()
