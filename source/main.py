@@ -99,7 +99,7 @@ class Application(QMainWindow):
         parser = argparse.ArgumentParser(description="Run the Active Cooling Application")
         parser.add_argument("n_region", help="Number of regions", type=int, default=10, nargs='?')
         args = parser.parse_args()
-        window = Application(n_region=args.n_region, test_UI=False)
+        window = Application(n_region=10, test_UI=False)
         window.show()
         sys.exit(app.exec())
 

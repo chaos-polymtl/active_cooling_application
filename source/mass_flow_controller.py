@@ -42,7 +42,31 @@ class MFC():
 		self.DAC0 = DACx578(self.i2c, address=0x48)
 		self.DAC1 = DACx578(self.i2c, address=0x47)	
 
-		self.DAC_region_channel = {0 : 0, 7 : 1, 1 : 2, 6 : 3, 2 : 4, 5 : 5, 3 : 6, 4 : 7, 8 : 0, 9 : 7}
+		# self.DAC_region_channel = {
+		# 	0 : 0,  #A DAC0 canal 0
+		# 	7 : 1,	#B DAC0 canal 7
+		# 	1 : 2,	#C DAC0 canal 1
+		# 	6 : 3,  #D DAC0 canal 6
+		# 	2 : 4,  #E DAC0 canal 2
+		# 	5 : 5,  #F DAC0 canal 5
+		# 	3 : 6,  #G DAC0 canal 3
+		# 	4 : 7,  #H DAC0 canal 4
+		# 	7 : 8,  #H DAC1 canal 7
+		# 	5 : 9,   #F DAC1 canal 5
+		# }
+
+		self.DAC_region_channel = {
+			0 : 0,  #A DAC0 canal 0
+			1 : 7,	#B DAC0 canal 7
+			2 : 1,	#C DAC0 canal 1
+			3 : 6,  #D DAC0 canal 6
+			4 : 2,  #E DAC0 canal 2
+			5 : 5,  #F DAC0 canal 5
+			6 : 3,  #G DAC0 canal 3
+			7 : 4,  #H DAC0 canal 4
+			8 : 7,  #H DAC1 canal 7
+			9 : 5,   #F DAC1 canal 5
+		}
 
 		self.n_region = n_region
 		self.flow_rate = np.zeros(n_region)
@@ -84,7 +108,9 @@ class MFC():
 			analog_input = 0.
 
 		if region < 8:
+			print(self.DAC_region_channel[region])
 			self.DAC0.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.
 		else:
+			print (region)
 			print(self.DAC_region_channel[region])
 			self.DAC1.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.
