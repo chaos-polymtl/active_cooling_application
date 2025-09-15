@@ -40,32 +40,19 @@ class MFC():
 		self.ADC_analog = np.zeros(n_region)
 	
 		self.DAC0 = DACx578(self.i2c, address=0x48)
-		self.DAC1 = DACx578(self.i2c, address=0x47)	
-
-		# self.DAC_region_channel = {
-		# 	0 : 0,  #A DAC0 canal 0
-		# 	7 : 1,	#B DAC0 canal 7
-		# 	1 : 2,	#C DAC0 canal 1
-		# 	6 : 3,  #D DAC0 canal 6
-		# 	2 : 4,  #E DAC0 canal 2
-		# 	5 : 5,  #F DAC0 canal 5
-		# 	3 : 6,  #G DAC0 canal 3
-		# 	4 : 7,  #H DAC0 canal 4
-		# 	7 : 8,  #H DAC1 canal 7
-		# 	5 : 9,   #F DAC1 canal 5
-		# }
+		self.DAC1 = DACx578(self.i2c, address=0x49)	
 
 		self.DAC_region_channel = {
-			0 : 0,  #A DAC0 canal 0
-			1 : 7,	#B DAC0 canal 7
-			2 : 1,	#C DAC0 canal 1
-			3 : 6,  #D DAC0 canal 6
-			4 : 2,  #E DAC0 canal 2
-			5 : 5,  #F DAC0 canal 5
-			6 : 3,  #G DAC0 canal 3
-			7 : 4,  #H DAC0 canal 4
-			8 : 7,  #H DAC1 canal 7
-			9 : 5,   #F DAC1 canal 5
+			0 : 0,  #A DAC0 chanel 0
+			1 : 7,	#B DAC0 chanel 7
+			2 : 1,	#C DAC0 chanel 1
+			3 : 6,  #D DAC0 chanel 6
+			4 : 2,  #E DAC0 chanel 2
+			5 : 5,  #F DAC0 chanel 5
+			6 : 3,  #G DAC0 chanel 3
+			7 : 4,  #H DAC0 chanel 4
+			8 : 7,  #H DAC1 chanel 7
+			9 : 5,  #F DAC1 chanel 5
 		}
 
 		self.n_region = n_region
@@ -77,6 +64,7 @@ class MFC():
 		
 		n_points_ADC0 = min(8, self.n_region)
 		self.ADC_analog[:n_points_ADC0] = self.ADC[0].measure_voltage()[:n_points_ADC0]
+		print(self.ADC[0].measure_voltage())
 		if self.n_region > 8:
 			self.ADC_analog[n_points_ADC0:10] = self.ADC[1].measure_voltage()[:2]
 
@@ -108,9 +96,6 @@ class MFC():
 			analog_input = 0.
 
 		if region < 8:
-			print(self.DAC_region_channel[region])
 			self.DAC0.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.
 		else:
-			print (region)
-			print(self.DAC_region_channel[region])
 			self.DAC1.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.

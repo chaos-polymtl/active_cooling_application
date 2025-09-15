@@ -1015,9 +1015,9 @@ class UI(QWidget):
             # Autoscale plot
             self.ax[0].autoscale_view()
             self.ax[2].autoscale_view()
-        
-        self.canvas.flush_events()
-        self.canvas.draw_idle()
+
+            self.canvas.flush_events()
+            self.canvas.draw_idle()
 
     
     def update_single_plot(self, i):
