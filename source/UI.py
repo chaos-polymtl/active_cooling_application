@@ -900,8 +900,6 @@ class UI(QWidget):
             
             # Set flow rate
             self.MFC.set_flow_rate(region, float(self.mfc_input[region].text()))
-
-            print(f'Setting MFC {region} flow rate to {self.mfc_input[region].text()} L/min')
             
             #Update display
             if int(self.mfc_input[region].text()) > 300:

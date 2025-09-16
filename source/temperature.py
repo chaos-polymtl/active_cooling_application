@@ -16,7 +16,7 @@ import numpy as np
 
 class Temperature():
     def __init__(self, n_region, test = False):
-        self.test = True
+        self.test = test
 
         if self.test:
             pass
