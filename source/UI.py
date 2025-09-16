@@ -900,8 +900,6 @@ class UI(QWidget):
             
             # Set flow rate
             self.MFC.set_flow_rate(region, float(self.mfc_input[region].text()))
-
-            print(f'Setting MFC {region} flow rate to {self.mfc_input[region].text()} L/min')
             
             #Update display
             if int(self.mfc_input[region].text()) > 300:
@@ -1002,6 +1000,7 @@ class UI(QWidget):
             # Update plot information per region 
             for i, ax in enumerate([self.ax[0], self.ax[2]]):
                 # Update flow rate plot
+
                 self.canvas.restore_region(self.figs_backgrounds[i])
                 for line in ax.get_lines():
                     ax.draw_artist(line)
@@ -1014,9 +1013,9 @@ class UI(QWidget):
             # Autoscale plot
             self.ax[0].autoscale_view()
             self.ax[2].autoscale_view()
-        
-        self.canvas.flush_events()
-        self.canvas.draw_idle()
+
+            self.canvas.flush_events()
+            self.canvas.draw_idle()
 
     
     def update_single_plot(self, i):

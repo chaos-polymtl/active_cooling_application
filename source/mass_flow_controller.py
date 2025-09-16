@@ -35,14 +35,38 @@ class MFC():
 		while not self.i2c.try_lock():
 			pass
 		self.i2c.unlock()
+
+		self.MFC_region_dict = {
+			0 : 0,
+			1 : 4,
+			2 : 7,
+			3 : 3,
+			4 : 1,
+			5 : 5,
+			6 : 6,
+			7 : 2,
+			8 : 8,
+			9 : 9,
+		}
 			
 		self.ADC = [TLA2528(address=0x12), TLA2528(address=0x13)]
 		self.ADC_analog = np.zeros(n_region)
 	
 		self.DAC0 = DACx578(self.i2c, address=0x48)
-		self.DAC1 = DACx578(self.i2c, address=0x47)	
+		self.DAC1 = DACx578(self.i2c, address=0x49)	
 
-		self.DAC_region_channel = {0 : 0, 7 : 1, 1 : 2, 6 : 3, 2 : 4, 5 : 5, 3 : 6, 4 : 7, 8 : 0, 9 : 7}
+		self.DAC_region_channel = {
+			self.MFC_region_dict[0] : 0,  #A DAC0 chanel 0
+			self.MFC_region_dict[1] : 7,  #B DAC0 chanel 7
+			self.MFC_region_dict[2] : 1,  #C DAC0 chanel 1
+			self.MFC_region_dict[3] : 6,  #D DAC0 chanel 6
+			self.MFC_region_dict[4] : 2,  #E DAC0 chanel 2
+			self.MFC_region_dict[5] : 5,  #F DAC0 chanel 5
+			self.MFC_region_dict[6] : 3,  #G DAC0 chanel 3
+			self.MFC_region_dict[7] : 4,  #H DAC0 chanel 4
+			self.MFC_region_dict[8] : 7,  #H DAC1 chanel 7
+			self.MFC_region_dict[9] : 5,  #F DAC1 chanel 5
+		}
 
 		self.n_region = n_region
 		self.flow_rate = np.zeros(n_region)
@@ -52,9 +76,10 @@ class MFC():
 			return
 		
 		n_points_ADC0 = min(8, self.n_region)
+		n_points_ADC1 = max(0, self.n_region - 8)
 		self.ADC_analog[:n_points_ADC0] = self.ADC[0].measure_voltage()[:n_points_ADC0]
 		if self.n_region > 8:
-			self.ADC_analog[n_points_ADC0:10] = self.ADC[1].measure_voltage()[:2]
+			self.ADC_analog[n_points_ADC0:n_points_ADC0 + n_points_ADC1] = self.ADC[1].measure_voltage()[:n_points_ADC1]
 
 	def get_flow_rate(self):
 		if self.test_UI:
@@ -68,7 +93,7 @@ class MFC():
 				self.flow_rate[i] = 0
 			else:
 				self.flow_rate[i] = np.round(flow_rate, decimals=2)
-				
+
 	def set_flow_rate(self, region, flow_rate):
 		if self.test_UI:
 			return
@@ -77,7 +102,7 @@ class MFC():
 		if((analog_input <= 5.) and (analog_input > 1.)):
 			self.flow_rate_setpoint[region] = (analog_input - 1.) * 75.
 		elif analog_input > 5.:
-			self.flow_rate_setpoint[region] = 5.
+			self.flow_rate_setpoint[region] = (5. - 1.) * 75.
 			analog_input = 5.
 		else:
 			self.flow_rate_setpoint[region] = 0.
@@ -86,5 +111,4 @@ class MFC():
 		if region < 8:
 			self.DAC0.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.
 		else:
-			print(self.DAC_region_channel[region])
 			self.DAC1.channels[self.DAC_region_channel[region]].normalized_value = analog_input / 5.

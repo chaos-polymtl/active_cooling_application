@@ -1,3 +1,0 @@
-Temperature mode: False
-Region 0: {'Region boundaries': [8, 13, 8, 14]}
-Region 1: {'Region boundaries': [20, 25, 8, 14]}

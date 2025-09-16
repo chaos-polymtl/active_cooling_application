@@ -42,10 +42,6 @@ class Application(QMainWindow):
             _style = f.read()
             self.setStyleSheet(_style)
 
-        # Set window icon
-        window_icon = QIcon(f"{application_dir}/chaos_logo_small.svg")
-        self.setWindowIcon(window_icon)
-
         # Create solenoid valve instance
         self.solenoid = Solenoid(n_region, self.test_UI)
 
@@ -97,7 +93,7 @@ class Application(QMainWindow):
     def run():
         app = QApplication(sys.argv)      
         parser = argparse.ArgumentParser(description="Run the Active Cooling Application")
-        parser.add_argument("n_region", help="Number of regions", type=int, default=10, nargs='?')
+        parser.add_argument("n_region", help="Number of regions", type=int, default=9, nargs='?')
         args = parser.parse_args()
         window = Application(n_region=args.n_region, test_UI=False)
         window.show()
@@ -107,7 +103,7 @@ class Application(QMainWindow):
     def run_test():
         app = QApplication(sys.argv)
         parser = argparse.ArgumentParser(description="Run the Active Cooling Application on test mode")
-        parser.add_argument("n_region", help="Number of regions", type=int, default=10, nargs='?')
+        parser.add_argument("n_region", help="Number of regions", type=int, default=9, nargs='?')
         args = parser.parse_args()
         window = Application(n_region=args.n_region, test_UI=True)
         window.show()
