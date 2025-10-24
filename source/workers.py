@@ -56,7 +56,7 @@ class MeasureAndControlWorker(QObject):
     def apply_control(self):
         '''Apply PID control to MFCs flow rate'''
         
-        if self.application.UI.mfc_temperature_checkbox.isChecked():
+        if self.application.UI.pid_temperature_checkbox.isChecked():
             current_flow_rate = self.application.MFC.flow_rate
             temperature_average = self.application.temperature.temperature_average
             temperature_setpoint = self.application.UI.temperature_setpoint
@@ -104,9 +104,8 @@ class MeasureAndControlWorker(QObject):
                 outlet_print = [("OUT" if v == -1 else f"{int(v)}") for v in current]
                 self.application.UI.scheduler_current_state.setText("[" + ", ".join(outlet_print) + "]")
       
-                                                       
-            if self.application.UI.mfc_temperature_checkbox.isChecked():
-                for j in range(self.application.n_region):
+            for j in range(self.application.n_region):                                      
+                if self.application.UI.pid_temperature_checkbox.isChecked():
                     self.application.UI.temperature_setpoint[j] = scheduled_temperature_setpoints[j]
             else:
                 # Delegate flow rate commands to set_flow_and_solenoid_states method
@@ -167,7 +166,7 @@ class MeasureAndControlWorker(QObject):
 
     def save_data(self):
         if self.application.UI.save_mode:
-            if self.application.UI.mfc_temperature_checkbox.isChecked():
+            if self.application.UI.pid_temperature_checkbox.isChecked():
                 self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))              
                 self.save_data_array = np.zeros(1 + 10 * self.application.n_region)
                 self.save_data_array[2*self.application.n_region + 1 : 3*self.application.n_region + 1] = self.application.UI.temperature_setpoint
