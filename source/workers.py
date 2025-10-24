@@ -54,8 +54,9 @@ class MeasureAndControlWorker(QObject):
         self.update_ui_signal.emit()
 
     def apply_control(self):
-        '''Apply PID control to MFCs flow rate'''
-        
+        '''Apply PID or MPC control to MFC flow rate'''
+
+        # Apply PID control if enabled
         if self.application.UI.pid_temperature_checkbox.isChecked():
             current_flow_rate = self.application.MFC.flow_rate
             temperature_average = self.application.temperature.temperature_average
@@ -79,6 +80,28 @@ class MeasureAndControlWorker(QObject):
                 for j in range(self.application.n_region):
                     decoupled_output = self.application.decouplers.compute_decoupled_output(pid_outputs)
                     self.application.MFC.set_flow_rate(j, decoupled_output[j])
+
+        elif self.application.UI.mpc_temperature_checkbox.isChecked():
+            # Only one region is active for MPC control
+            n_region = 1
+
+            # Compute average temperature for the active region
+            avg_temperature = self.application.temperature.temperature_average[0]
+
+            # Get the temperature setpoint and MPC parameters for the active region
+            temperature_setpoint = self.application.UI.temperature_setpoint[0]
+            prediction_horizon = self.application.MPC[0].prediction_horizon
+            control_weight = self.application.MPC[0].control_weight
+            dt = self.application.time_step
+
+            # Compute the optimal flow rate using MPC
+            ######## TO BE IMPLEMENTED ########
+            # Placeholder for MPC computation
+            control_output = np.ones(self.application.MFC.flow_rate.shape[0]) * 100
+
+            # Apply control output to MFCs
+            for j in range(self.application.MFC.flow_rate.shape[0]):
+                self.application.MFC.set_flow_rate(j, control_output[j])
 
     def apply_scheduler(self):
         '''Apply scheduler to MFC flow rates and temperature setpoints'''    

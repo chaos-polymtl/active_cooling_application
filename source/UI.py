@@ -66,7 +66,11 @@ class UI(QWidget):
     scheduler_disabled = Signal()
 
     # Create user interface
-    def init_UI(self, solenoid, temperature, MFC, PID, n_region, test_UI = False):       
+    def init_UI(self, solenoid, temperature, MFC, PID, n_region, test_UI = False):  
+
+        # Remember the initial number of regions (to restore after MPC mode)     
+        self.initial_n_region = n_region
+        self.n_region = n_region # local copy to modify
 
         # Set lower limit to temperature setpoint
         # TODO: make widget for this
@@ -268,27 +272,42 @@ class UI(QWidget):
         # When toggled, it will enable/disable the temperature input
         # Untoggled, it controls the mfc flow rate straight
         # Temperature mode applies the PID control to control MFCs flow rate according to temperature setpoint
-        self.pid_temperature_checkbox = QCheckBox('PID temperature control mode - MFCs adjust according to temperature setpoint', self)
+        self.pid_temperature_checkbox = QCheckBox('PID temperature control mode', self)
 
         # Connect checkbox to function
         self.pid_temperature_checkbox.checkStateChanged.connect(self.toggle_mfc_temperature_edit)
         
         # Add checkbox to layout
         mfc_temperature_selector.addWidget(self.pid_temperature_checkbox)
-        
+
+        ################################
+        # Create a checkbox for MFC control mode
+        self.mpc_temperature_checkbox = QCheckBox('MPC temperature control mode', self)
+
+        # By default, disabled
+        self.mpc_temperature_checkbox.setChecked(False)
+
+        # When MPC is enabled, disable PID temperature control mode
+        self.mpc_temperature_checkbox.toggled.connect(lambda checked: self.pid_temperature_checkbox.setEnabled(not checked))
+        self.pid_temperature_checkbox.toggled.connect(lambda checked: self.mpc_temperature_checkbox.setEnabled(not checked))
+
+        # When toggled, clear and create MPC parameter section
+        self.mpc_temperature_checkbox.checkStateChanged.connect(self.toggle_mpc_temperature_edit)
+
+        # Add checkbox to layout
+        mfc_temperature_selector.addWidget(self.mpc_temperature_checkbox)
+        ################################
+
+        # Create a checkbox for scheduler mode
         self.scheduler_filename = ''
-
         self.scheduler_checkbox = QCheckBox('Scheduler', self)
-
         self.scheduler_checkbox.checkStateChanged.connect(self.toggle_scheduler)
-
         mfc_temperature_selector.addWidget(self.scheduler_checkbox)
 
+        # Create a checkbox for decoupler mode
         self.decoupler_checkbox = QCheckBox('Decoupler', self)
         self.decoupler_checkbox.setVisible(False)  # Initially hidden
-        
         mfc_temperature_selector.addWidget(self.decoupler_checkbox)
-        
         # Show decoupler checkbox only if temperature control mode is selected
         self.pid_temperature_checkbox.toggled.connect(lambda: self.decoupler_checkbox.setVisible(self.pid_temperature_checkbox.isChecked()))
         
@@ -805,6 +824,109 @@ class UI(QWidget):
         else:
             self.create_mfc_section()
 
+    def toggle_mpc_temperature_edit(self):
+        '''MPC Temperature control mode. Called when toggled'''
+
+        # Clear current layout (remove MFC/PID inputs)
+        self.clear_layout(self.temperature_mfc_edit_layout)
+
+        if self.mpc_temperature_checkbox.isChecked():
+            # Store the current number of regions before switching to MPC
+            self.previous_n_region = self.n_region
+
+            # ---- Enforce single-region mode for MPC ----
+            self.n_region = 1  # enforce one region
+            self.region_selector.clear()
+            self.region_selector.addItem("Region 0 (Full plate)")
+            self.region_selector.setEnabled(False)
+
+            # Keep region boundary inputs enabled (user defines the plate area)
+            for i in range(self.n_region_corners):
+                self.region_boundaries_input[i].setEnabled(True)
+                self.region_boundaries_display[i].setEnabled(True)
+
+            # Inform user
+            note = QLabel("MPC mode: single user-defined region active (set boundaries below).")
+            note.setStyleSheet("color: gray; font-style: italic;")
+            self.temperature_mfc_edit_layout.addWidget(note)
+
+            # Initialize MPC parameters (default values)
+            self.mpc_prediction_horizon = 5  # Prediction horizon
+            self.mpc_control_weight = 0.11  # Control weight
+            self.mpc_setpoint = 60.0  # Desired temperature setpoint
+            self.time_step = 30  # Time step for each control action in seconds
+
+            # Layout for MPC parameters
+            mpc_layout = QVBoxLayout()
+            self.temperature_mfc_edit_layout.addLayout(mpc_layout)
+
+            title = QLabel("MPC Parameters: ")
+            mpc_layout.addWidget(title)
+
+            # Prediction horizon input
+            prediction_horizon_layout = QHBoxLayout()
+            prediction_horizon_label = QLabel("Prediction Horizon: ")
+            self.mpc_prediction_horizon_input = QLineEdit(str(self.mpc_prediction_horizon))
+            self.mpc_prediction_horizon_input.returnPressed.connect(self.set_mpc_parameters)
+            prediction_horizon_layout.addWidget(prediction_horizon_label)
+            prediction_horizon_layout.addWidget(self.mpc_prediction_horizon_input)
+            mpc_layout.addLayout(prediction_horizon_layout)
+
+            # Control weight input
+            control_weight_layout = QHBoxLayout()
+            control_weight_label = QLabel("Control Weight: ")
+            self.mpc_control_weight_input = QLineEdit(str(self.mpc_control_weight))
+            self.mpc_control_weight_input.returnPressed.connect(self.set_mpc_parameters)
+            control_weight_layout.addWidget(control_weight_label)
+            control_weight_layout.addWidget(self.mpc_control_weight_input)
+            mpc_layout.addLayout(control_weight_layout)
+
+            # Setpoint input
+            setpoint_layout = QHBoxLayout()
+            setpoint_label = QLabel("Temperature Setpoint: ")
+            self.mpc_setpoint_input = QLineEdit(str(self.mpc_setpoint))
+            self.mpc_setpoint_input.returnPressed.connect(self.set_mpc_parameters)
+            setpoint_layout.addWidget(setpoint_label)
+            setpoint_layout.addWidget(self.mpc_setpoint_input)
+            mpc_layout.addLayout(setpoint_layout)   
+
+            # Time step input
+            time_step_layout = QHBoxLayout()
+            time_step_label = QLabel("Time Step (s): ")
+            self.time_step_input = QLineEdit(str(self.time_step))
+            self.time_step_input.returnPressed.connect(self.set_mpc_parameters)
+            time_step_layout.addWidget(time_step_label)
+            time_step_layout.addWidget(self.time_step_input)
+            mpc_layout.addLayout(time_step_layout)
+
+        else:
+            # Restore previous region configuration
+            self.n_region = getattr(self, "previous_n_region", self.initial_n_region)
+
+            # Restore region selector
+            self.region_selector.clear()
+            for i in range(self.n_region):
+                self.region_selector.insertItem(i, f"Region {i}")
+            self.region_selector.setEnabled(True)
+
+            # Restore the multi-region control layout (PID or MFC)
+            self.create_mfc_section()
+
+    def set_mpc_parameters(self):
+        '''Update MPC parameters when user presses Enter in any of the MPC parameter input fields'''
+        if len(self.mpc_prediction_horizon_input.text()) > 0:
+            self.mpc_prediction_horizon = int(self.mpc_prediction_horizon_input.text())
+            self.mpc_prediction_horizon_input.clear()
+        if len(self.mpc_control_weight_input.text()) > 0:
+            self.mpc_control_weight = float(self.mpc_control_weight_input.text())
+            self.mpc_control_weight_input.clear()
+        if len(self.mpc_setpoint_input.text()) > 0:
+            self.mpc_setpoint = float(self.mpc_setpoint_input.text())
+            self.mpc_setpoint_input.clear()
+        if len(self.time_step_input.text()) > 0:
+            self.time_step = int(self.time_step_input.text())
+            self.time_step_input.clear()
+        print(f"MPC parameters updated: Prediction Horizon = {self.mpc_prediction_horizon}, Control Weight = {self.mpc_control_weight}, Setpoint = {self.mpc_setpoint}, Time Step = {self.time_step}s")
 
     def clear_layout(self, layout):
         '''Function to delete all layouts from a parent layout'''

@@ -27,6 +27,7 @@ from source.mass_flow_controller import MFC
 from source.pid_controller import PIDControl
 from source.decouplers import decouplers
 from source.workers import MeasureAndControlWorker
+from source.mpc_controller import MPCController
 
 class Application(QMainWindow):
     def __init__(self, n_region=1, test_UI=False):
@@ -60,6 +61,7 @@ class Application(QMainWindow):
 
         # Each region can be an "inlet" or an "outlet"
         self.region_modes = np.array(["inlet"] * n_region)
+        self.MPC = MPCController()
 
         # Create UI instance
         self.UI = UI()
