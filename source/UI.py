@@ -72,10 +72,6 @@ class UI(QWidget):
         self.initial_n_region = n_region
         self.n_region = n_region # local copy to modify
 
-        # Set lower limit to temperature setpoint
-        # TODO: make widget for this
-        self.temperature_setpoint_lower_limit = 50
-
         self.time_step = 1
         
         # Set number of regions

@@ -86,10 +86,10 @@ class MeasureAndControlWorker(QObject):
             n_region = 1
 
             # Compute average temperature for the active region
-            avg_temperature = self.application.temperature.temperature_average[0]
+            avg_temperature = self.application.temperature.get_temperature_average(n_region, self.application.UI.region_boundaries)
 
             # Get the temperature setpoint and MPC parameters for the active region
-            temperature_setpoint = self.application.UI.temperature_setpoint[0]
+            temperature_setpoint = self.application.UI.temperature_setpoint
             prediction_horizon = self.application.MPC[0].prediction_horizon
             control_weight = self.application.MPC[0].control_weight
             dt = self.application.time_step
@@ -102,6 +102,53 @@ class MeasureAndControlWorker(QObject):
             # Apply control output to MFCs
             for j in range(self.application.MFC.flow_rate.shape[0]):
                 self.application.MFC.set_flow_rate(j, control_output[j])
+
+
+        # elif self.application.UI.mpc_temperature_checkbox.isChecked():
+        #     avgT = self.application.temperature.get_temperature_average()[0]
+        #     setpoint = self.application.UI.mpc_setpoint
+        #     H = self.application.UI.mpc_prediction_horizon
+        #     lam = self.application.UI.mpc_control_weight
+        #     dt = self.application.UI.time_step
+
+        #     # 1. Compute normalized arrangement in [-1, 1]^n
+        #     arrangement = self.application.MPC.compute_arrangement(
+        #         avg_temperature=avgT,
+        #         setpoint=setpoint,
+        #         prediction_horizon=H,
+        #         control_weight=lam,
+        #         dt=dt
+        #     )
+
+        #     # 2. Apply to actuators
+        #     self.apply_mpc_arrangement(arrangement)
+
+        #     # 3. Optional diagnostic
+        #     print(f"[MPC] Arrangement: {np.round(arrangement, 2)}")
+
+
+    def apply_mpc_arrangement(self, arrangement: np.ndarray):
+        """
+        Apply MPC arrangement to actuators:
+        - negative value (port is an outlet) → solenoid open, MFC flow = 0
+        - positive value (port is closed or an inlet) → solenoid closed, MFC flow = value * 300 L/min
+        """
+        n_actuators = len(arrangement)
+        mfc = self.application.MFC
+        solenoid = self.application.solenoid
+
+        for j in range(n_actuators):
+            val = float(arrangement[j])
+
+            if val <= 0:
+                # Negative or zero → exhaust (solenoid open), no inflow
+                mfc.set_flow_rate(j, 0.0)
+                solenoid.set_solenoid_state(j, True)
+            else:
+                # Positive → inflow (solenoid closed), scaled MFC flow
+                flow_rate = val * 300.0
+                mfc.set_flow_rate(j, flow_rate)
+                solenoid.set_solenoid_state(j, False)
 
     def apply_scheduler(self):
         '''Apply scheduler to MFC flow rates and temperature setpoints'''    
