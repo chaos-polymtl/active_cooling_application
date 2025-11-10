@@ -97,7 +97,12 @@ class MeasureAndControlWorker(QObject):
                     self.application.UI.scheduler_change_time = -1
                     self.application.UI.scheduler_current_time.setText(str(self.application.UI.scheduler_data[0][0]) + " --- end")
 
-                self.application.UI.scheduler_current_state.setText(str(self.application.UI.scheduler_data[0][1:]))         
+                # self.application.UI.scheduler_current_state.setText(str(self.application.UI.scheduler_data[0][1:]))   
+                # Pretty-print new current state: OUT for outlets, integer for inlets
+                current = self.application.UI.scheduler_data[0][1:]
+                pretty = [("OUT" if v == -1 else f"{int(v)}") for v in current]
+                self.application.UI.scheduler_current_state.setText("[" + ", ".join(pretty) + "]")
+      
                                                        
             for j in range(self.application.n_region):
                 if self.application.UI.mfc_temperature_checkbox.isChecked():

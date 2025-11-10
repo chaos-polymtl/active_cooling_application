@@ -727,13 +727,22 @@ class UI(QWidget):
             return
 
         else:
-
-            # Read csv with time, and mfc stepoints
-            self.scheduler_data = np.genfromtxt(self.scheduler_filename, delimiter = ',')
+            # Read csv with time and mfc setpoints and coerce to 2D float array
+            raw = np.genfromtxt(self.scheduler_filename, delimiter=',')
+            if raw.ndim == 1:
+                raw = raw.reshape(1, -1)
+            # Validate shape: [N_rows, 1 + n_region]
+            expected_cols = 1 + self.n_region
+            if raw.shape[1] != expected_cols:
+                scheduler_file_line.setText(f'Invalid file: expected {expected_cols} columns (time + {self.n_region} regions), got {raw.shape[1]}')
+                return
+            
+            self.scheduler_data = raw.astype(float)
 
             # Update file display
             scheduler_file_line.setText(self.scheduler_filename)
 
+            # Set initial "current time window" and "next change"
             if self.scheduler_data.shape[0] > 1:
                 self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- " + str(self.scheduler_data[1][0]))
                 self.scheduler_change_time = self.scheduler_data[1][0]
@@ -741,7 +750,12 @@ class UI(QWidget):
                 self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
                 self.scheduler_change_time = -1
 
-            self.scheduler_current_state.setText(str(self.scheduler_data[0][1:]))
+            # self.scheduler_current_state.setText(str(self.scheduler_data[0][1:]))
+
+            # Pretty-print current state: -1 => OUT, >=0 => value
+            current = self.scheduler_data[0][1:]
+            pretty = [("OUT" if v == -1 else f"{int(v)}") for v in current]
+            self.scheduler_current_state.setText("[" + ", ".join(pretty) + "]")
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''
