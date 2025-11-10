@@ -930,18 +930,23 @@ class UI(QWidget):
             self.temperature_input[region].clear()
             
     
-    def set_region_boundaries(self, region, from_state_file = False):
+    def set_region_boundaries(self, region=None, from_state_file = False):
         '''Set region boundaries upon changing value'''
 
-        
-        # Get information from file
+        # --- CASE 1: loading from saved state file ---
         if from_state_file:
+            # Copy all four corners for the current region
+            self.region_boundaries[self.current_region] = self.load_region_boundaries[self.current_region]
+
+            # Update patches in figure
+            self.update_patches()
             for i in range(self.n_region_corners):
-                text = self.load_region_boundaries[self.current_region][i]
+                self.region_boundaries_display[i].setText(str(self.region_boundaries[self.current_region][i]))
+            return
         
+        # --- CASE 2: manual input region boundaries in GUI ---
         # Get text from input line
-        else:
-            text = self.region_boundaries_input[region].text()
+        text = self.region_boundaries_input[region].text()
 
         # Only accept values within the resolution of the camera
         if region in [0,2] and int(text) < 0: text = 0
@@ -953,10 +958,8 @@ class UI(QWidget):
         
         # Update patches in figure
         self.update_patches()
-
         # Update display
         self.region_boundaries_display[region].setText(str(self.region_boundaries[self.current_region][region]))
-
         # Clear input line
         self.region_boundaries_input[region].clear()
 
@@ -1155,12 +1158,8 @@ class UI(QWidget):
             self.set_region_boundaries(from_state_file = True)
 
         self.current_region = 0
-
         # Update current region
         self.update_current_region()
-        
-        # Update PID gains
-        self.set_pid_gains()
 
     def set_font_QLabels(self, font_size):    
         '''Apply the font to all QLabel instances in the app'''
