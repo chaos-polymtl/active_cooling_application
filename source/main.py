@@ -58,6 +58,9 @@ class Application(QMainWindow):
         
         self.decouplers = decouplers()
 
+        # Each region can be an "inlet" or an "outlet"
+        self.region_modes = np.array(["inlet"] * n_region)
+
         # Create UI instance
         self.UI = UI()
         self.UI.init_UI(solenoid = self.solenoid, temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
@@ -88,6 +91,30 @@ class Application(QMainWindow):
 
         # Allow the application to close
         event.accept()
+
+    def apply_flow_command(self, flow_command):
+        """
+        Apply flow command for all regions.
+        -1 => outlet (solenoid open, MFC 0, region_modes='outlet')
+        >=0 => inlet  (solenoid closed, MFC=value clamped 0–300, region_modes='inlet')
+        """
+        for j, val in enumerate(flow_command):
+            try:
+                v = float(val)
+            except Exception:
+                v = 0.0
+
+            if v < 0.0:
+                # Outlet behavior for any negative value
+                self.region_modes[j] = "outlet"
+                self.solenoid.set_solenoid_state(j, True)
+                self.MFC.set_flow_rate(j, 0.0)
+            else:
+                # Inlet behavior
+                self.region_modes[j] = "inlet"
+                self.solenoid.set_solenoid_state(j, False)
+                v = max(0.0, min(300.0, v))
+                self.MFC.set_flow_rate(j, v)
 
     @staticmethod
     def run():
