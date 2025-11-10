@@ -105,12 +105,12 @@ class Application(QMainWindow):
                 v = 0.0
 
             if v < 0.0:
-                # Outlet behavior for any negative value
+                # Outlet for any negative value
                 self.region_modes[j] = "outlet"
                 self.solenoid.set_solenoid_state(j, True)
                 self.MFC.set_flow_rate(j, 0.0)
             else:
-                # Inlet behavior
+                # Inlet for zero or positive value
                 self.region_modes[j] = "inlet"
                 self.solenoid.set_solenoid_state(j, False)
                 v = max(0.0, min(300.0, v))

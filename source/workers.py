@@ -104,11 +104,12 @@ class MeasureAndControlWorker(QObject):
                 self.application.UI.scheduler_current_state.setText("[" + ", ".join(pretty) + "]")
       
                                                        
-            for j in range(self.application.n_region):
-                if self.application.UI.mfc_temperature_checkbox.isChecked():
+            if self.application.UI.mfc_temperature_checkbox.isChecked():
+                for j in range(self.application.n_region):
                     self.application.UI.temperature_setpoint[j] = scheduled_temperature_setpoints[j]
-                else:
-                    self.application.MFC.set_flow_rate(j, scheduled_flow_rates[j])
+            else:
+                # Delegate flow rate commands to apply_flow_command method
+                self.application.apply_flow_command(scheduled_flow_rates)
                 
 
                             
