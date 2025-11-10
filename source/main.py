@@ -64,6 +64,7 @@ class Application(QMainWindow):
         # Create UI instance
         self.UI = UI()
         self.UI.init_UI(solenoid = self.solenoid, temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
+        self.UI.application = self
         self.setCentralWidget(self.UI)
         
         self.measure_and_control_thread = QThread()

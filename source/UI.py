@@ -666,6 +666,12 @@ class UI(QWidget):
         else:
             self.clear_layout(self.scheduler_layout)
             self.mfc_temperature_checkbox.setEnabled(True)
+
+            # Reset all the MFCs to zero when scheduler is disabled
+            if hasattr(self, 'application'):
+                zero_flow_rates = np.zeros(self.n_region)
+                self.application.apply_flow_command(zero_flow_rates)
+
             if self.mfc_temperature_checkbox.isChecked():
                 for i in range(self.n_region):
                     self.temperature_input[i].setReadOnly(False)
