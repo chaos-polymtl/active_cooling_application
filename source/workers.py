@@ -123,6 +123,20 @@ class MeasureAndControlWorker(QObject):
         # Start the worker and the thread
         self.application.measure_and_control_thread.start()
 
+    @Slot()
+    def stop(self):
+        """Stop the worker’s QTimer from within the worker thread."""
+        # Guard against double calls
+        if getattr(self, "_stopped", False):
+            return
+        self._stopped = True
+
+        try:
+            if self.timer.isActive():
+                self.timer.stop()
+        except Exception:
+            pass
+
     def get_time(self):
         self.application.time = self.elapsed_timer.elapsed() / 1000
         self.application.time_step = self.elapsed_timer.elapsed() / 1000 - self.application.previous_time
