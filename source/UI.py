@@ -871,8 +871,8 @@ class UI(QWidget):
                 header += f', mfc_{i}'
 
             # Add Temperature headers
-                for i in range(self.n_region):
-                    header += f', temperature_{i}'
+            for i in range(self.n_region):
+                header += f', temperature_{i}'
 
             # Executes if temperature control mode is enabled (be sure to create file and save data after clicking the checkbox)
             if self.mfc_temperature_checkbox.isChecked():
