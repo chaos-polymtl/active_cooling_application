@@ -58,35 +58,57 @@ class Application(QMainWindow):
         
         self.decouplers = decouplers()
 
+        # Each region can be an "inlet" or an "outlet"
+        self.region_modes = np.array(["inlet"] * n_region)
+
         # Create UI instance
         self.UI = UI()
         self.UI.init_UI(solenoid = self.solenoid, temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
         self.setCentralWidget(self.UI)
+        self.UI.scheduler_disabled.connect(self.reset_all_flows)
         
         self.measure_and_control_thread = QThread()
         self.measure_and_control_worker = MeasureAndControlWorker(self)
         self.measure_and_control_worker.start_threads()
 
+        self.measure_and_control_worker.stop_signal.connect(self.measure_and_control_worker.stop)
         self.measure_and_control_worker.stop_signal.connect(self.measure_and_control_thread.quit)
         self.measure_and_control_thread.finished.connect(self.measure_and_control_worker.deleteLater)
 
+    def reset_all_flows(self):
+        """Reset all MFC flow rates to zero."""
+
+        zero_flow_rates = np.zeros(self.n_region)
+        self.measure_and_control_worker.flow_command_signal.emit(zero_flow_rates)
+
     def closeEvent(self, event):
-        
-        # Stop the worker's timer
-        self.measure_and_control_worker.stop_signal.emit()
+        """Stop worker thread and close the application."""
 
-        # Disconnect any signals to prevent access to deleted objects
-        self.measure_and_control_worker.update_ui_signal.disconnect()
+        # --- Stop the worker safely in its own thread ---
+        try:
+            if hasattr(self, "measure_and_control_worker"):
+                # Emit stop signal (worker.stop() runs inside worker thread)
+                self.measure_and_control_worker.stop_signal.emit()
+        except Exception as e:
+            print("Warning: failed to emit stop signal", e)
 
-        # Zero MFCs flow rate
-        for j in range(self.n_region):
-            self.MFC.set_flow_rate(j, 0)
+        # --- Tell the thread to quit and wait ---
+        try:
+            if hasattr(self, "measure_and_control_thread"):
+                self.measure_and_control_thread.quit()
+                self.measure_and_control_thread.wait(2000)
+        except Exception as e:
+            print("Warning: failed to quit thread", e)
 
-        # Zero solenoid state
-        for j in range(self.n_region):
-            self.solenoid.set_solenoid_state(j, False)
+        # --- Zero MFCs and solenoids for safety ---
+        try:
+            for j in range(self.n_region):
+                self.MFC.set_flow_rate(j, 0)
+                self.solenoid.set_solenoid_state(j, False)
+        except Exception:
+            pass
 
-        # Allow the application to close
+        # --- Accept event ---
         event.accept()
 
     @staticmethod

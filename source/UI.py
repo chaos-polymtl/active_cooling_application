@@ -16,6 +16,7 @@ import os
 import numpy as np
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QComboBox, QCheckBox, QPushButton, QFileDialog, QPushButton, QGridLayout, QFrame, QTextEdit
 from PySide6.QtGui import QFont
+from PySide6.QtCore import Signal
 from matplotlib import patches, use
 from matplotlib.ticker import MaxNLocator, FormatStrFormatter
 import matplotlib.style as mplstyle
@@ -62,6 +63,8 @@ plt.rcParams['font.size'] = '12'
 
 # ================== User interface ==================
 class UI(QWidget):
+    scheduler_disabled = Signal()
+
     # Create user interface
     def init_UI(self, solenoid, temperature, MFC, PID, n_region, test_UI = False):       
 
@@ -280,7 +283,6 @@ class UI(QWidget):
         self.scheduler_checkbox.checkStateChanged.connect(self.toggle_scheduler)
 
         mfc_temperature_selector.addWidget(self.scheduler_checkbox)
-     
 
         self.decoupler_checkbox = QCheckBox('Decoupler', self)
         self.decoupler_checkbox.setVisible(False)  # Initially hidden
@@ -666,6 +668,8 @@ class UI(QWidget):
         else:
             self.clear_layout(self.scheduler_layout)
             self.mfc_temperature_checkbox.setEnabled(True)
+            self.scheduler_disabled.emit() # Notify application that scheduler is disabled
+
             if self.mfc_temperature_checkbox.isChecked():
                 for i in range(self.n_region):
                     self.temperature_input[i].setReadOnly(False)
@@ -727,13 +731,22 @@ class UI(QWidget):
             return
 
         else:
-
-            # Read csv with time, and mfc stepoints
-            self.scheduler_data = np.genfromtxt(self.scheduler_filename, delimiter = ',')
+            # Read CSV with time and MFC setpoints and convert to 2D float array
+            raw = np.genfromtxt(self.scheduler_filename, delimiter=',')
+            if raw.ndim == 1:
+                raw = raw.reshape(1, -1)
+            # Validate shape: [N_rows, 1 + n_region]
+            expected_cols = 1 + self.n_region
+            if raw.shape[1] != expected_cols:
+                scheduler_file_line.setText(f'Invalid file: expected {expected_cols} columns (time + {self.n_region} regions), got {raw.shape[1]}')
+                return
+            
+            self.scheduler_data = raw.astype(float)
 
             # Update file display
             scheduler_file_line.setText(self.scheduler_filename)
 
+            # Set initial "current time window" and "next change"
             if self.scheduler_data.shape[0] > 1:
                 self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- " + str(self.scheduler_data[1][0]))
                 self.scheduler_change_time = self.scheduler_data[1][0]
@@ -741,7 +754,10 @@ class UI(QWidget):
                 self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
                 self.scheduler_change_time = -1
 
-            self.scheduler_current_state.setText(str(self.scheduler_data[0][1:]))
+            # Print current state: -1 => OUT, >=0 => value
+            current = self.scheduler_data[0][1:]
+            outlet_print = [("OUT" if v == -1 else f"{int(v)}") for v in current]
+            self.scheduler_current_state.setText("[" + ", ".join(outlet_print) + "]")
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''
@@ -851,8 +867,8 @@ class UI(QWidget):
                 header += f', mfc_{i}'
 
             # Add Temperature headers
-                for i in range(self.n_region):
-                    header += f', temperature_{i}'
+            for i in range(self.n_region):
+                header += f', temperature_{i}'
 
             # Executes if temperature control mode is enabled (be sure to create file and save data after clicking the checkbox)
             if self.mfc_temperature_checkbox.isChecked():
@@ -930,33 +946,50 @@ class UI(QWidget):
             self.temperature_input[region].clear()
             
     
-    def set_region_boundaries(self, region, from_state_file = False):
+    def set_region_boundaries(self, region=None, from_state_file = False):
         '''Set region boundaries upon changing value'''
 
-        
-        # Get information from file
+        # --- CASE 1: loading from saved state file ---
         if from_state_file:
+            # Copy all four corners for the current region
+            loaded = self.load_region_boundaries[self.current_region].copy()
+            # Clamp values to be within camera resolution
+            if loaded[0] < 0: loaded[0] = 0 # x_min
+            if loaded[1] > self.temperature.resolution[1] - 1: loaded[1] = self.temperature.resolution[1] - 1 # x_max
+            if loaded[2] < 0: loaded[2] = 0 # y_min
+            if loaded[3] > self.temperature.resolution[0] - 1: loaded[3] = self.temperature.resolution[0] - 1 # y_max
+            self.region_boundaries[self.current_region] = loaded
+
+            # Update patches in figure
+            self.update_patches()
             for i in range(self.n_region_corners):
-                text = self.load_region_boundaries[self.current_region][i]
+                self.region_boundaries_display[i].setText(str(self.region_boundaries[self.current_region][i]))
+            return
         
-        # Get text from input line
+        # --- CASE 2: manual input region boundaries in GUI ---
         else:
+            # Get text from input line
             text = self.region_boundaries_input[region].text()
 
         # Only accept values within the resolution of the camera
-        if region in [0,2] and int(text) < 0: text = 0
-        if region == 1 and int(text) > self.temperature.resolution[1] - 1: text = self.temperature.resolution[1] - 1
-        if region == 3 and int(text) > self.temperature.resolution[0] - 1: text = self.temperature.resolution[0] - 1
+        if region in [0,2] and int(text) < 0: text = 0 # x_min, y_min
+        if region == 1 and int(text) > self.temperature.resolution[1] - 1: text = self.temperature.resolution[1] - 1 # x_max
+        if region == 3 and int(text) > self.temperature.resolution[0] - 1: text = self.temperature.resolution[0] - 1 # y_max
+
+        # Enforce min < max for x and y
+        if region == 0 and int(text) >= self.region_boundaries[self.current_region][1]: text = self.region_boundaries[self.current_region][1] - 1  # x_min
+        if region == 1 and int(text) <= self.region_boundaries[self.current_region][0]: text = self.region_boundaries[self.current_region][0] + 1  # x_max
+        if region == 2 and int(text) >= self.region_boundaries[self.current_region][3]: text = self.region_boundaries[self.current_region][3] - 1  # y_min
+        if region == 3 and int(text) <= self.region_boundaries[self.current_region][2]: text = self.region_boundaries[self.current_region][2] + 1  # y_max
+
 
         # Set region boundaries
         self.region_boundaries[self.current_region][region] = int(text)
         
         # Update patches in figure
         self.update_patches()
-
         # Update display
         self.region_boundaries_display[region].setText(str(self.region_boundaries[self.current_region][region]))
-
         # Clear input line
         self.region_boundaries_input[region].clear()
 
@@ -1158,9 +1191,6 @@ class UI(QWidget):
 
         # Update current region
         self.update_current_region()
-        
-        # Update PID gains
-        self.set_pid_gains()
 
     def set_font_QLabels(self, font_size):    
         '''Apply the font to all QLabel instances in the app'''
