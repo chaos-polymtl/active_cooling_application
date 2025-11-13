@@ -969,8 +969,9 @@ class UI(QWidget):
             return
         
         # --- CASE 2: manual input region boundaries in GUI ---
-        # Get text from input line
-        text = self.region_boundaries_input[region].text()
+        else:
+            # Get text from input line
+            text = self.region_boundaries_input[region].text()
 
         # Only accept values within the resolution of the camera
         if region in [0,2] and int(text) < 0: text = 0 # x_min, y_min
