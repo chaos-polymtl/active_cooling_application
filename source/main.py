@@ -76,7 +76,7 @@ class Application(QMainWindow):
         self.measure_and_control_thread.finished.connect(self.measure_and_control_worker.deleteLater)
 
     def closeEvent(self, event):
-        """Gracefully stop worker thread and close the application."""
+        """Stop worker thread and close the application."""
 
         # --- Stop the worker safely in its own thread ---
         try:
@@ -104,31 +104,6 @@ class Application(QMainWindow):
 
         # --- Accept event ---
         event.accept()
-
-
-    def apply_flow_command(self, flow_command):
-        """
-        Apply flow command for all regions.
-        -1 => outlet (solenoid open, MFC 0, region_modes='outlet')
-        >=0 => inlet  (solenoid closed, MFC=value clamped 0–300, region_modes='inlet')
-        """
-        for j, val in enumerate(flow_command):
-            try:
-                v = float(val)
-            except Exception:
-                v = 0.0
-
-            if v < 0.0:
-                # Outlet for any negative value
-                self.region_modes[j] = "outlet"
-                self.solenoid.set_solenoid_state(j, True)
-                self.MFC.set_flow_rate(j, 0.0)
-            else:
-                # Inlet for zero or positive value
-                self.region_modes[j] = "inlet"
-                self.solenoid.set_solenoid_state(j, False)
-                v = max(0.0, min(300.0, v))
-                self.MFC.set_flow_rate(j, v)
 
     @staticmethod
     def run():

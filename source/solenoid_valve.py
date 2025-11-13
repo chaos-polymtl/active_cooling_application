@@ -34,7 +34,7 @@ class Solenoid:
 
         # Safety: ensure solenoid-mask exists
         if not hasattr(self, "solenoid_mask"):
-            # Create solenoid mask to follow harware
+            # Create solenoid mask to follow hardware
             self.solenoid_mask = {0 : 9, 1 : 8, 2 : 5, 3 : 4, 4 : 7, 5 : 6, 6 : 1, 7 : 0, 8 : 3, 9 : 2}
 
         solenoid_id = self.solenoid_mask[solenoid_id]

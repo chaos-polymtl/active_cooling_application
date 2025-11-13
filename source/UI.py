@@ -670,7 +670,7 @@ class UI(QWidget):
             # Reset all the MFCs to zero when scheduler is disabled
             if hasattr(self, 'application'):
                 zero_flow_rates = np.zeros(self.n_region)
-                self.application.apply_flow_command(zero_flow_rates)
+                self.application.measure_and_control_worker.set_flow_and_solenoid_states(zero_flow_rates)
 
             if self.mfc_temperature_checkbox.isChecked():
                 for i in range(self.n_region):
@@ -733,7 +733,7 @@ class UI(QWidget):
             return
 
         else:
-            # Read csv with time and mfc setpoints and coerce to 2D float array
+            # Read CSV with time and MFC setpoints and convert to 2D float array
             raw = np.genfromtxt(self.scheduler_filename, delimiter=',')
             if raw.ndim == 1:
                 raw = raw.reshape(1, -1)
@@ -756,12 +756,10 @@ class UI(QWidget):
                 self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
                 self.scheduler_change_time = -1
 
-            # self.scheduler_current_state.setText(str(self.scheduler_data[0][1:]))
-
-            # Pretty-print current state: -1 => OUT, >=0 => value
+            # Print current state: -1 => OUT, >=0 => value
             current = self.scheduler_data[0][1:]
-            pretty = [("OUT" if v == -1 else f"{int(v)}") for v in current]
-            self.scheduler_current_state.setText("[" + ", ".join(pretty) + "]")
+            outlet_print = [("OUT" if v == -1 else f"{int(v)}") for v in current]
+            self.scheduler_current_state.setText("[" + ", ".join(outlet_print) + "]")
 
     def set_min_max_temperature_limits(self):
         '''Set minimum and maximum temperature limits'''

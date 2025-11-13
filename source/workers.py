@@ -12,6 +12,7 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
+import traceback
 from PySide6.QtCore import QObject, QTimer, QElapsedTimer, Signal, Slot
 import numpy as np
 
@@ -97,20 +98,42 @@ class MeasureAndControlWorker(QObject):
                     self.application.UI.scheduler_change_time = -1
                     self.application.UI.scheduler_current_time.setText(str(self.application.UI.scheduler_data[0][0]) + " --- end")
 
-                # self.application.UI.scheduler_current_state.setText(str(self.application.UI.scheduler_data[0][1:]))   
-                # Pretty-print new current state: OUT for outlets, integer for inlets
+                # Print new current state: OUT for outlets, integer for inlets
                 current = self.application.UI.scheduler_data[0][1:]
-                pretty = [("OUT" if v == -1 else f"{int(v)}") for v in current]
-                self.application.UI.scheduler_current_state.setText("[" + ", ".join(pretty) + "]")
+                outlet_print = [("OUT" if v == -1 else f"{int(v)}") for v in current]
+                self.application.UI.scheduler_current_state.setText("[" + ", ".join(outlet_print) + "]")
       
                                                        
             if self.application.UI.mfc_temperature_checkbox.isChecked():
                 for j in range(self.application.n_region):
                     self.application.UI.temperature_setpoint[j] = scheduled_temperature_setpoints[j]
             else:
-                # Delegate flow rate commands to apply_flow_command method
-                self.application.apply_flow_command(scheduled_flow_rates)
-                
+                # Delegate flow rate commands to set_flow_and_solenoid_states method
+                self.set_flow_and_solenoid_states(scheduled_flow_rates)
+
+    def set_flow_and_solenoid_states(self, flow_command):
+        """
+        Apply flow command for all regions.
+        -1 => outlet (solenoid open, MFC 0, region_modes='outlet')
+        >=0 => inlet  (solenoid closed, MFC=value clamped 0–300, region_modes='inlet')
+        """
+        for j, val in enumerate(flow_command):
+            try:
+                v = float(val)
+            except Exception:
+                v = 0.0
+
+            if v < 0.0:
+                # Outlet for any negative value
+                self.application.region_modes[j] = "outlet"
+                self.application.solenoid.set_solenoid_state(j, True)
+                self.application.MFC.set_flow_rate(j, 0.0)
+            else:
+                # Inlet for zero or positive value
+                self.application.region_modes[j] = "inlet"
+                self.application.solenoid.set_solenoid_state(j, False)
+                v = max(0.0, min(300.0, v))
+                self.application.MFC.set_flow_rate(j, v)
 
                             
     def start_threads(self):
@@ -135,7 +158,8 @@ class MeasureAndControlWorker(QObject):
             if self.timer.isActive():
                 self.timer.stop()
         except Exception:
-            pass
+            print("[Worker.stop] Exception while stopping timer:")
+            traceback.print_exc()
 
     def get_time(self):
         self.application.time = self.elapsed_timer.elapsed() / 1000
