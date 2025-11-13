@@ -954,7 +954,13 @@ class UI(QWidget):
         # --- CASE 1: loading from saved state file ---
         if from_state_file:
             # Copy all four corners for the current region
-            self.region_boundaries[self.current_region] = self.load_region_boundaries[self.current_region]
+            loaded = self.load_region_boundaries[self.current_region].copy()
+            # Clamp values to be within camera resolution
+            if loaded[0] < 0: loaded[0] = 0 # x_min
+            if loaded[1] > self.temperature.resolution[1] - 1: loaded[1] = self.temperature.resolution[1] - 1 # x_max
+            if loaded[2] < 0: loaded[2] = 0 # y_min
+            if loaded[3] > self.temperature.resolution[0] - 1: loaded[3] = self.temperature.resolution[0] - 1 # y_max
+            self.region_boundaries[self.current_region] = loaded
 
             # Update patches in figure
             self.update_patches()
@@ -967,9 +973,16 @@ class UI(QWidget):
         text = self.region_boundaries_input[region].text()
 
         # Only accept values within the resolution of the camera
-        if region in [0,2] and int(text) < 0: text = 0
-        if region == 1 and int(text) > self.temperature.resolution[1] - 1: text = self.temperature.resolution[1] - 1
-        if region == 3 and int(text) > self.temperature.resolution[0] - 1: text = self.temperature.resolution[0] - 1
+        if region in [0,2] and int(text) < 0: text = 0 # x_min, y_min
+        if region == 1 and int(text) > self.temperature.resolution[1] - 1: text = self.temperature.resolution[1] - 1 # x_max
+        if region == 3 and int(text) > self.temperature.resolution[0] - 1: text = self.temperature.resolution[0] - 1 # y_max
+
+        # Enforce min < max for x and y
+        if region == 0 and int(text) >= self.region_boundaries[self.current_region][1]: text = self.region_boundaries[self.current_region][1] - 1  # x_min
+        if region == 1 and int(text) <= self.region_boundaries[self.current_region][0]: text = self.region_boundaries[self.current_region][0] + 1  # x_max
+        if region == 2 and int(text) >= self.region_boundaries[self.current_region][3]: text = self.region_boundaries[self.current_region][3] - 1  # y_min
+        if region == 3 and int(text) <= self.region_boundaries[self.current_region][2]: text = self.region_boundaries[self.current_region][2] + 1  # y_max
+
 
         # Set region boundaries
         self.region_boundaries[self.current_region][region] = int(text)
