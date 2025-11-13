@@ -20,12 +20,14 @@ class MeasureAndControlWorker(QObject):
 
     update_ui_signal = Signal()
     stop_signal = Signal()
+    flow_command_signal = Signal(object)
 
     def __init__(self, application):
         super().__init__()
         self.application = application
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.perform_measure_and_control)
+        self.flow_command_signal.connect(self.set_flow_and_solenoid_states)
 
         self.elapsed_timer = QElapsedTimer()
         self.elapsed_timer.start()
@@ -133,7 +135,6 @@ class MeasureAndControlWorker(QObject):
                 self.application.solenoid.set_solenoid_state(j, False)
                 v = max(0.0, min(300.0, v))
                 self.application.MFC.set_flow_rate(j, v)
-
                             
     def start_threads(self):
         # Create and start the thread for measure and control

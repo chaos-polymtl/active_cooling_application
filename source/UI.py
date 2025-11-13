@@ -16,6 +16,7 @@ import os
 import numpy as np
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QComboBox, QCheckBox, QPushButton, QFileDialog, QPushButton, QGridLayout, QFrame, QTextEdit
 from PySide6.QtGui import QFont
+from PySide6.QtCore import Signal
 from matplotlib import patches, use
 from matplotlib.ticker import MaxNLocator, FormatStrFormatter
 import matplotlib.style as mplstyle
@@ -62,6 +63,8 @@ plt.rcParams['font.size'] = '12'
 
 # ================== User interface ==================
 class UI(QWidget):
+    scheduler_disabled = Signal()
+
     # Create user interface
     def init_UI(self, solenoid, temperature, MFC, PID, n_region, test_UI = False):       
 
@@ -280,7 +283,6 @@ class UI(QWidget):
         self.scheduler_checkbox.checkStateChanged.connect(self.toggle_scheduler)
 
         mfc_temperature_selector.addWidget(self.scheduler_checkbox)
-     
 
         self.decoupler_checkbox = QCheckBox('Decoupler', self)
         self.decoupler_checkbox.setVisible(False)  # Initially hidden
@@ -666,11 +668,7 @@ class UI(QWidget):
         else:
             self.clear_layout(self.scheduler_layout)
             self.mfc_temperature_checkbox.setEnabled(True)
-
-            # Reset all the MFCs to zero when scheduler is disabled
-            if hasattr(self, 'application'):
-                zero_flow_rates = np.zeros(self.n_region)
-                self.application.measure_and_control_worker.set_flow_and_solenoid_states(zero_flow_rates)
+            self.scheduler_disabled.emit() # Notify application that scheduler is disabled
 
             if self.mfc_temperature_checkbox.isChecked():
                 for i in range(self.n_region):

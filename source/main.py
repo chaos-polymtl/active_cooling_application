@@ -64,8 +64,8 @@ class Application(QMainWindow):
         # Create UI instance
         self.UI = UI()
         self.UI.init_UI(solenoid = self.solenoid, temperature = self.temperature, MFC = self.MFC, PID = self.PID, n_region = n_region, test_UI = test_UI)
-        self.UI.application = self
         self.setCentralWidget(self.UI)
+        self.UI.scheduler_disabled.connect(self.reset_all_flows)
         
         self.measure_and_control_thread = QThread()
         self.measure_and_control_worker = MeasureAndControlWorker(self)
@@ -74,6 +74,12 @@ class Application(QMainWindow):
         self.measure_and_control_worker.stop_signal.connect(self.measure_and_control_worker.stop)
         self.measure_and_control_worker.stop_signal.connect(self.measure_and_control_thread.quit)
         self.measure_and_control_thread.finished.connect(self.measure_and_control_worker.deleteLater)
+
+    def reset_all_flows(self):
+        """Reset all MFC flow rates to zero."""
+
+        zero_flow_rates = np.zeros(self.n_region)
+        self.measure_and_control_worker.flow_command_signal.emit(zero_flow_rates)
 
     def closeEvent(self, event):
         """Stop worker thread and close the application."""
