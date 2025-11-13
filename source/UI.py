@@ -1189,12 +1189,9 @@ class UI(QWidget):
             self.set_region_boundaries(from_state_file = True)
 
         self.current_region = 0
-        
+
         # Update current region
         self.update_current_region()
-
-        # Update PID gains
-        self.set_pid_gains()
 
     def set_font_QLabels(self, font_size):    
         '''Apply the font to all QLabel instances in the app'''
