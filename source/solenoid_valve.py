@@ -21,21 +21,16 @@ class Solenoid:
         self.test_UI = test_UI
         self.state = [0b00000000, 0b00000000]
 
+        # Create solenoid mask to follow harware
+        self.solenoid_mask = {0 : 9, 1 : 8, 2 : 5, 3 : 4, 4 : 7, 5 : 6, 6 : 1, 7 : 0, 8 : 3, 9 : 2}
+
         if test_UI:
             return
         from source.DRV8806 import DRV8806
 
         self.DRV = DRV8806()
-
-        # Create solenoid mask to follow harware
-        self.solenoid_mask = {0 : 9, 1 : 8, 2 : 5, 3 : 4, 4 : 7, 5 : 6, 6 : 1, 7 : 0, 8 : 3, 9 : 2}
     
     def set_solenoid_state(self, solenoid_id, new_state: bool):
-
-        # # Safety: ensure solenoid-mask exists
-        # if not hasattr(self, "solenoid_mask"):
-        #     # Create solenoid mask to follow hardware
-        #     self.solenoid_mask = {0 : 9, 1 : 8, 2 : 5, 3 : 4, 4 : 7, 5 : 6, 6 : 1, 7 : 0, 8 : 3, 9 : 2}
 
         solenoid_id = self.solenoid_mask[solenoid_id]
         
