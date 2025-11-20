@@ -16,12 +16,12 @@ import os
 import numpy as np
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QComboBox, QCheckBox, QPushButton, QFileDialog, QPushButton, QGridLayout, QFrame, QTextEdit
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 from matplotlib import patches, use
 from matplotlib.ticker import MaxNLocator, FormatStrFormatter
 import matplotlib.style as mplstyle
 mplstyle.use('fast')
-use('Agg')
+# use('Agg')
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 
@@ -291,7 +291,7 @@ class UI(QWidget):
         self.pid_temperature_checkbox.toggled.connect(lambda checked: self.mpc_temperature_checkbox.setEnabled(not checked))
 
         # When toggled, clear and create MPC parameter section
-        self.mpc_temperature_checkbox.checkStateChanged.connect(self.create_mpc_section)
+        self.mpc_temperature_checkbox.checkStateChanged.connect(self.toggle_mpc_temperature_edit)
 
         # Add checkbox to layout
         mfc_temperature_selector.addWidget(self.mpc_temperature_checkbox)
@@ -316,6 +316,29 @@ class UI(QWidget):
         # Create a layout for MFC and temperature
         self.temperature_mfc_edit_layout = QVBoxLayout()
         self.layout.addLayout(self.temperature_mfc_edit_layout)
+
+        # # =====================================
+        # # Tic Tac Toe visualization (3×3 grid)
+        # # =====================================
+        # self.tictactoe_layout = QGridLayout()
+        # self.tictactoe_cells = []
+        # self.layout.addLayout(self.tictactoe_layout)
+
+        # # Create 3×3 grid of display boxes (for 9 regions)
+        # for i in range(3):
+        #     row = []
+        #     for j in range(3):
+        #         cell = QLineEdit()
+        #         cell.setReadOnly(True)
+        #         cell.setEnabled(False)
+        #         cell.setAlignment(Qt.AlignCenter)
+        #         cell.setFixedWidth(60)
+        #         cell.setFixedHeight(40)
+        #         cell.setStyleSheet("background-color: lightgray; font-weight: bold;")
+        #         self.tictactoe_layout.addWidget(cell, i, j)
+        #         row.append(cell)
+        #     self.tictactoe_cells.append(row)
+
 
         # Maximum number of columns in the grid
         self.n_columns_mfc_temperature_grid = 15
@@ -476,7 +499,6 @@ class UI(QWidget):
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setMinimumHeight(300)
         self.canvas.draw()
-        self.figs_backgrounds = [self.canvas.copy_from_bbox(ax.bbox) for ax in [self.ax[0], self.ax[2]]]
 
         # Add canvas to layout
         self.layout.addWidget(self.canvas)
@@ -823,7 +845,7 @@ class UI(QWidget):
         else:
             self.create_mfc_section()
 
-    def create_mpc_section(self):
+    def toggle_mpc_temperature_edit(self):
         '''MPC Temperature control mode. Called when toggled'''
 
         # Clear current layout (remove MFC/PID inputs)
@@ -831,10 +853,6 @@ class UI(QWidget):
 
         if self.mpc_temperature_checkbox.isChecked():
             # Store the current number of regions before switching to MPC
-            self.previous_n_region = self.n_region
-
-            # ---- Enforce single-region mode for MPC ----
-            self.n_region = 1  # enforce one region
             self.region_selector.clear()
             self.region_selector.addItem("Region 0 (Full plate)")
             self.region_selector.setEnabled(False)
@@ -856,9 +874,48 @@ class UI(QWidget):
             self.mpc_setpoint = 60.0  # Desired temperature setpoint
             self.time_step = 60  # Time step for each control action in seconds
 
-            # Layout for MPC parameters
+            # Create horizontal layout for: MPC parameters | TTT grid
+            mpc_main_layout = QHBoxLayout()
+            self.temperature_mfc_edit_layout.addLayout(mpc_main_layout)
+
+            # Left column: MPC parameters
             mpc_layout = QVBoxLayout()
-            self.temperature_mfc_edit_layout.addLayout(mpc_layout)
+            mpc_main_layout.addLayout(mpc_layout)
+
+            # Right column: TicTacToe grid (3×3)
+            ttt_frame = QFrame()
+            ttt_frame.setFrameShape(QFrame.Box)
+            ttt_frame.setFrameShadow(QFrame.Raised)
+
+            ttt_frame_layout = QVBoxLayout()
+            ttt_frame.setLayout(ttt_frame_layout)
+
+            title = QLabel("MFC State (3×3 Grid)")
+            title.setStyleSheet("font-weight: bold;")
+            ttt_frame_layout.addWidget(title)
+
+            ttt_grid = QGridLayout()
+            ttt_frame_layout.addLayout(ttt_grid)
+
+            # Create 3×3 cells (if not created before)
+            self.tictactoe_cells = []
+            for i in range(3):
+                row = []
+                for j in range(3):
+                    cell = QLineEdit("---")
+                    cell.setReadOnly(True)
+                    cell.setEnabled(False)
+                    cell.setAlignment(Qt.AlignCenter)
+                    cell.setFixedWidth(60)
+                    cell.setFixedHeight(45)
+                    cell.setStyleSheet("border: 1px solid black;")
+                    ttt_grid.addWidget(cell, i, j)
+                    row.append(cell)
+                self.tictactoe_cells.append(row)
+
+            # Add the framed grid to the right side of MPC parameters
+            mpc_main_layout.addWidget(ttt_frame)
+            self.tictactoe_frame = ttt_frame
 
             title = QLabel("MPC Parameters: ")
             mpc_layout.addWidget(title)
@@ -947,8 +1004,10 @@ class UI(QWidget):
             mpc_layout.addLayout(time_step_layout)
 
         else:
-            # Restore previous region configuration
-            self.n_region = getattr(self, "previous_n_region", self.initial_n_region)
+            # Remove TicTacToe visualization when leaving MPC mode
+            if hasattr(self, "tictactoe_frame"):
+                self.tictactoe_frame.setParent(None)
+                del self.tictactoe_frame
 
             # Restore region selector
             self.region_selector.clear()
@@ -1183,7 +1242,7 @@ class UI(QWidget):
         for i in range(self.n_region_corners):
             self.region_boundaries_display[i].setText(str(self.region_boundaries[self.current_region][i]))        
 
-    def update_plot(self, time, temperature, MFC):
+    def update_plot(self, time, temperature, MFC, region_modes):
         '''Update all plots in the figure'''
 
         # If update plot is enabled
@@ -1207,15 +1266,8 @@ class UI(QWidget):
 
             [self.update_single_plot(i) for i in range(self.n_region)]
 
-            # Update plot information per region 
-            for i, ax in enumerate([self.ax[0], self.ax[2]]):
-                # Update flow rate plot
-
-                self.canvas.restore_region(self.figs_backgrounds[i])
-                for line in ax.get_lines():
-                    ax.draw_artist(line)
-                self.canvas.blit(ax.bbox)
-
+            self.canvas.draw_idle()
+    
             # Update plot limits
             self.ax[0].relim()
             self.ax[2].relim()
@@ -1224,10 +1276,11 @@ class UI(QWidget):
             self.ax[0].autoscale_view()
             self.ax[2].autoscale_view()
 
-            self.canvas.flush_events()
-            self.canvas.draw_idle()
+            # Update Tic-Tac-Toe display with current flow rates and region modes
+            # Only if in MPC temperature control mode and Tic-Tac-Toe cells exist
+            if self.mpc_temperature_checkbox.isChecked() and hasattr(self, "tictactoe_cells"):
+                self.update_tictactoe(MFC.flow_rate, region_modes)
 
-    
     def update_single_plot(self, i):
         '''Update plot information per region'''
         self.ax[0].get_lines()[i].set_data(self.time_plot, self.flow_rate_plot[i, :])
@@ -1335,50 +1388,47 @@ class UI(QWidget):
         # Update state file display
         self.save_state_widget.setText(self.state_filename)
 
-        experimental_parameters = {}
 
-        with open(self.state_filename, "r") as file:
-            for line in file:
-                # Strip newline and split by the separator
-                key, value = line.strip().split(": ", 1)
-                
-                # Store parameter into dictionary
-                experimental_parameters[key] = value
-
-        self.pid_temperature_checkbox.setChecked(eval(experimental_parameters['Temperature mode']))
-        if self.pid_temperature_checkbox.isChecked():
-            self.pid_temperature_checkbox.toggled.emit(True)
-
-        self.load_region_boundaries = []
-
-        # Assign parameters to the current experiment
-        for i in range(self.n_region):
-            region_parameters = eval(experimental_parameters[f"Region {i}"])
-            self.load_region_boundaries.append(np.array(region_parameters['Region boundaries']).astype(int))
-
-            if self.pid_temperature_checkbox.isChecked():
-                self.PID[i].gains = np.array(region_parameters['PID gains']).astype(float)
-            
-        # Update boundaries of patches
-        for i in range(self.n_region):
-            self.current_region = i
-            self.set_region_boundaries(from_state_file = True)
-
-        self.current_region = 0
-
-        # Update current region
-        self.update_current_region()
-
-    def set_font_QLabels(self, font_size):    
-        '''Apply the font to all QLabel instances in the app'''
-
-        # Create a font
-        title_font = QFont('Arial', font_size)
         title_font.setBold(True)
 
         for i in range(self.layout.count()):
             widget = self.layout.itemAt(i).widget()
             if isinstance(widget, QLabel):
                 widget.setFont(title_font)
+
+    def update_tictactoe(self, flow_rates, region_modes):
+        """
+        Update the 3x3 tic-tac-toe visualization.
+        - flow_rates: array of length 9 (0–300)
+        - region_modes: array of strings ['inlet'/'outlet']
+        """
+
+        # Expect exactly 9 MFC regions (3x3)
+        if len(flow_rates) != 9:
+            return
+
+        idx = 0
+        for i in range(3):
+            for j in range(3):
+
+                value = flow_rates[idx]
+                mode = region_modes[idx]
+
+                # Display numeric value (-1 for outlet)
+                if mode == "outlet":
+                    display_text = "-1"
+                    color = "red"
+                else:
+                    display_text = f"{int(value)}"
+                    color = "blue"
+
+                # Update cell
+                self.tictactoe_cells[i][j].setText(display_text)
+                self.tictactoe_cells[i][j].setStyleSheet(
+                    f"background-color: white; color: {color}; font-weight: bold; border: 2px solid black;"
+                )
+
+                idx += 1
+
 
 

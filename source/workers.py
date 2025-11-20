@@ -211,7 +211,7 @@ class MeasureAndControlWorker(QObject):
         self.moveToThread(self.application.measure_and_control_thread)
 
         # Connect the worker's signal to the update_plot method
-        self.update_ui_signal.connect(lambda: self.application.UI.update_plot(self.application.time, self.application.temperature, self.application.MFC))
+        self.update_ui_signal.connect(lambda: self.application.UI.update_plot(self.application.time, self.application.temperature, self.application.MFC, self.application.region_modes))
 
         # Start the worker and the thread
         self.application.measure_and_control_thread.start()

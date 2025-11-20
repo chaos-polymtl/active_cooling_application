@@ -32,14 +32,14 @@ class ExperimentalMPCController:
         self.n_region = n_region
         self.n_mfc = n_mfc
 
-        # Initialize the simulation model
-        self.simulation_model = FiniteDifference3D()
+        # # Initialize the simulation model
+        # self.simulation_model = FiniteDifference3D()
 
-        # Initialize data manager for handling simulation data
-        self.data_manager = DataManager()
+        # # Initialize data manager for handling simulation data
+        # self.data_manager = DataManager()
 
-        # Initialize the adjoint optimizer for MPC
-        self.adjoint_optimizer = AdjointTransient(self.simulation_model, self.data_manager)
+        # # Initialize the adjoint optimizer for MPC
+        # self.adjoint_optimizer = AdjointTransient(self.simulation_model, self.data_manager)
 
         # Default parameters for MPC (can be updated by the UI)
         self.prediction_horizon = 3  # Number of future steps to predict
