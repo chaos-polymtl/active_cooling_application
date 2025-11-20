@@ -276,6 +276,9 @@ class UI(QWidget):
         # Add checkbox to layout
         mfc_temperature_selector.addWidget(self.pid_temperature_checkbox)
 
+        # Create temperature_setpoint  (always, regardless of mode)
+        self.temperature_setpoint = np.repeat(None, n_region)
+
         ################################
         # Create a checkbox for MFC control mode
         self.mpc_temperature_checkbox = QCheckBox('MPC temperature control mode', self)
@@ -288,7 +291,7 @@ class UI(QWidget):
         self.pid_temperature_checkbox.toggled.connect(lambda checked: self.mpc_temperature_checkbox.setEnabled(not checked))
 
         # When toggled, clear and create MPC parameter section
-        self.mpc_temperature_checkbox.checkStateChanged.connect(self.toggle_mpc_temperature_edit)
+        self.mpc_temperature_checkbox.checkStateChanged.connect(self.create_mpc_section)
 
         # Add checkbox to layout
         mfc_temperature_selector.addWidget(self.mpc_temperature_checkbox)
@@ -820,7 +823,7 @@ class UI(QWidget):
         else:
             self.create_mfc_section()
 
-    def toggle_mpc_temperature_edit(self):
+    def create_mpc_section(self):
         '''MPC Temperature control mode. Called when toggled'''
 
         # Clear current layout (remove MFC/PID inputs)
@@ -848,9 +851,10 @@ class UI(QWidget):
 
             # Initialize MPC parameters (default values)
             self.mpc_prediction_horizon = 5  # Prediction horizon
-            self.mpc_control_weight = 0.11  # Control weight
+            self.mpc_control_horizon = 1  # Control horizon
+            self.mpc_control_weight = 0.1  # Control weight
             self.mpc_setpoint = 60.0  # Desired temperature setpoint
-            self.time_step = 30  # Time step for each control action in seconds
+            self.time_step = 60  # Time step for each control action in seconds
 
             # Layout for MPC parameters
             mpc_layout = QVBoxLayout()
@@ -862,37 +866,84 @@ class UI(QWidget):
             # Prediction horizon input
             prediction_horizon_layout = QHBoxLayout()
             prediction_horizon_label = QLabel("Prediction Horizon: ")
+
             self.mpc_prediction_horizon_input = QLineEdit(str(self.mpc_prediction_horizon))
             self.mpc_prediction_horizon_input.returnPressed.connect(self.set_mpc_parameters)
+
+            self.mpc_prediction_horizon_display = QLineEdit(str(self.mpc_prediction_horizon))
+            self.mpc_prediction_horizon_display.setReadOnly(True)
+            self.mpc_prediction_horizon_display.setEnabled(False)
+
             prediction_horizon_layout.addWidget(prediction_horizon_label)
             prediction_horizon_layout.addWidget(self.mpc_prediction_horizon_input)
+            prediction_horizon_layout.addWidget(self.mpc_prediction_horizon_display)
+
             mpc_layout.addLayout(prediction_horizon_layout)
+
+            # Control horizon input
+            control_horizon_layout = QHBoxLayout()
+            control_horizon_label = QLabel("Control Horizon: ")
+
+            self.mpc_control_horizon_input = QLineEdit(str(self.mpc_control_horizon))
+            self.mpc_control_horizon_input.returnPressed.connect(self.set_mpc_parameters)
+
+            self.mpc_control_horizon_display = QLineEdit(str(self.mpc_control_horizon))
+            self.mpc_control_horizon_display.setReadOnly(True)
+            self.mpc_control_horizon_display.setEnabled(False)
+
+            control_horizon_layout.addWidget(control_horizon_label)
+            control_horizon_layout.addWidget(self.mpc_control_horizon_input)
+            control_horizon_layout.addWidget(self.mpc_control_horizon_display)
+            mpc_layout.addLayout(control_horizon_layout)
 
             # Control weight input
             control_weight_layout = QHBoxLayout()
             control_weight_label = QLabel("Control Weight: ")
+
             self.mpc_control_weight_input = QLineEdit(str(self.mpc_control_weight))
             self.mpc_control_weight_input.returnPressed.connect(self.set_mpc_parameters)
+
+            self.mpc_control_weight_display = QLineEdit(str(self.mpc_control_weight))
+            self.mpc_control_weight_display.setReadOnly(True)
+            self.mpc_control_weight_display.setEnabled(False)
+
             control_weight_layout.addWidget(control_weight_label)
             control_weight_layout.addWidget(self.mpc_control_weight_input)
+            control_weight_layout.addWidget(self.mpc_control_weight_display)
+
             mpc_layout.addLayout(control_weight_layout)
 
             # Setpoint input
             setpoint_layout = QHBoxLayout()
             setpoint_label = QLabel("Temperature Setpoint: ")
+
             self.mpc_setpoint_input = QLineEdit(str(self.mpc_setpoint))
             self.mpc_setpoint_input.returnPressed.connect(self.set_mpc_parameters)
+
+            self.mpc_setpoint_display = QLineEdit(str(self.mpc_setpoint))
+            self.mpc_setpoint_display.setReadOnly(True)
+            self.mpc_setpoint_display.setEnabled(False)
+
             setpoint_layout.addWidget(setpoint_label)
             setpoint_layout.addWidget(self.mpc_setpoint_input)
+            setpoint_layout.addWidget(self.mpc_setpoint_display)
             mpc_layout.addLayout(setpoint_layout)   
 
             # Time step input
             time_step_layout = QHBoxLayout()
             time_step_label = QLabel("Time Step (s): ")
+
             self.time_step_input = QLineEdit(str(self.time_step))
             self.time_step_input.returnPressed.connect(self.set_mpc_parameters)
+
+            self.time_step_display = QLineEdit(str(self.time_step))
+            self.time_step_display.setReadOnly(True)
+            self.time_step_display.setEnabled(False)
+
             time_step_layout.addWidget(time_step_label)
             time_step_layout.addWidget(self.time_step_input)
+            time_step_layout.addWidget(self.time_step_display)
+
             mpc_layout.addLayout(time_step_layout)
 
         else:
@@ -912,17 +963,25 @@ class UI(QWidget):
         '''Update MPC parameters when user presses Enter in any of the MPC parameter input fields'''
         if len(self.mpc_prediction_horizon_input.text()) > 0:
             self.mpc_prediction_horizon = int(self.mpc_prediction_horizon_input.text())
+            self.mpc_prediction_horizon_display.setText(str(self.mpc_prediction_horizon))
             self.mpc_prediction_horizon_input.clear()
+        if len(self.mpc_control_horizon_input.text()) > 0:
+            self.mpc_control_horizon = int(self.mpc_control_horizon_input.text())
+            self.mpc_control_horizon_display.setText(str(self.mpc_control_horizon))
+            self.mpc_control_horizon_input.clear()
         if len(self.mpc_control_weight_input.text()) > 0:
             self.mpc_control_weight = float(self.mpc_control_weight_input.text())
+            self.mpc_control_weight_display.setText(str(self.mpc_control_weight))
             self.mpc_control_weight_input.clear()
         if len(self.mpc_setpoint_input.text()) > 0:
             self.mpc_setpoint = float(self.mpc_setpoint_input.text())
+            self.mpc_setpoint_display.setText(str(self.mpc_setpoint))
             self.mpc_setpoint_input.clear()
         if len(self.time_step_input.text()) > 0:
             self.time_step = int(self.time_step_input.text())
+            self.time_step_display.setText(str(self.time_step))
             self.time_step_input.clear()
-        print(f"MPC parameters updated: Prediction Horizon = {self.mpc_prediction_horizon}, Control Weight = {self.mpc_control_weight}, Setpoint = {self.mpc_setpoint}, Time Step = {self.time_step}s")
+        print(f"MPC parameters updated: Prediction Horizon = {self.mpc_prediction_horizon}, Control Horizon = {self.mpc_control_horizon}, Control Weight = {self.mpc_control_weight}, Setpoint = {self.mpc_setpoint}, Time Step = {self.time_step}s")
 
     def clear_layout(self, layout):
         '''Function to delete all layouts from a parent layout'''
