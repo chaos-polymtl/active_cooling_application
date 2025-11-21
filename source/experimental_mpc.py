@@ -84,14 +84,35 @@ class MPCControllerfake:
         self.temperature_setpoint = 60.0  # Desired temperature setpoint in Celsius
         self.time_step = 30.0  # Time step in seconds
 
-    def compute_mpc_control_action(self, current_temperatures, current_flow_rates):
-        """Compute the optimal MFC flow rates using MPC.
-        :param current_temperatures: Current temperatures of the regions
-        :param current_flow_rates: Current flow rates of the MFCs
-        :return: Optimal flow rates for the MFCs
+    def compute_mpc_control_action(
+            self,
+            temperature_vector,
+            temperature_shape,
+            current_flow_rates
+        ):
         """
-        # Placeholder for MPC optimization logic
-        # In a real implementation, this would involve setting up and solving an optimization problem
-        optimal_flow_rates = np.clip(current_flow_rates + 10.0, 0, 300)  # Dummy logic to increase flow rates
+        Dummy MPC. 
+        Input:
+            temperature_vector : 1D array of length H_sub*W_sub
+            temperature_shape  : (H_sub, W_sub)
+            current_flow_rates : array of length 9
+        Output:
+            9-element vector of commands
+            >0 → inlet (value*300 L/min)
+            <0 → outlet (-1)
+            0 → closed
+        """
 
-        return optimal_flow_rates
+        # Example simple dummy behaviour:
+        # Outlet at corner, inlet at center.
+        n_ports = 9
+        command = np.zeros(n_ports)
+
+        # make something non-trivial for testing:
+        # - center inlet at 50% (0.5 → 150 L/min)
+        # - top-left outlet (-1)
+        # others stay closed (0)
+        command[4] = 0.5
+        command[0] = -1
+
+        return command

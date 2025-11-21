@@ -15,6 +15,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 from PySide6.QtCore import QObject, QTimer, QElapsedTimer, Signal, Slot
 import numpy as np
 
+from source import experimental_mpc
+
 # Define a worker class for measure and control logic
 class MeasureAndControlWorker(QObject):
 
@@ -81,12 +83,53 @@ class MeasureAndControlWorker(QObject):
                     decoupled_output = self.application.decouplers.compute_decoupled_output(pid_outputs)
                     self.application.MFC.set_flow_rate(j, decoupled_output[j])
 
+        # Apply MPC control if enabled
         elif self.application.UI.mpc_temperature_checkbox.isChecked():
-            # Only one region is active for MPC control
-            n_region = 1
+            
+            # ####################################
+            # 1) MPC updates at a selected time interval
+            # ####################################
+            dt = self.application.UI.time_step
+            t = self.application.time
 
-            # Compute average temperature for the active region
-            avg_temperature = self.application.temperature.get_temperature_average(n_region, self.application.UI.region_boundaries)
+            if not hasattr(self, "next_mpc_time"):
+                self.next_mpc_time = t
+
+            if t < self.next_mpc_time:
+                return
+            else:
+                self.next_mpc_time += dt
+
+            # #####################################
+            # 2) Extract temperature measurement over the entire plate
+            # #####################################
+            grid = self.application.temperature.temperature_grid # full camera grid
+
+            # region 0 boundaries (from GUI)
+            x_min, x_max, y_min, y_max = self.application.UI.region_boundaries[0]
+
+            # clamping
+            H_full, W_full = grid.shape
+            x_min = max(0, min(x_min, W_full - 1))
+            x_max = max(0, min(x_max, W_full - 1))
+            y_min = max(0, min(y_min, H_full - 1))
+            y_max = max(0, min(y_max, H_full - 1))
+
+            # ensure ordering
+            if x_max < x_min: x_max = x_min
+            if y_max < y_min: y_max = y_min
+
+            # subregion
+            subgrid = grid[y_min:y_max+1, x_min:x_max+1]
+            H_sub, W_sub = subgrid.shape
+
+            # flatten
+            temp_vec = subgrid.flatten(order="C")
+
+            # #####################################
+            # 3) Prepare MPC inputs and parameters
+            # #####################################
+            mpc = self.application.MPC
 
             # Get the temperature setpoint and MPC parameters for the active region
             temperature_setpoint = self.application.UI.temperature_setpoint
@@ -95,38 +138,14 @@ class MeasureAndControlWorker(QObject):
             control_weight = self.application.MPC.control_weight
             dt = self.application.time_step
 
-            # Compute the optimal flow rate using MPC
-            ######## TO BE IMPLEMENTED ########
-            # Placeholder for MPC computation
-            control_output = np.ones(self.application.MFC.flow_rate.shape[0]) * 100
-
-            # Apply control output to MFCs
-            for j in range(self.application.MFC.flow_rate.shape[0]):
-                self.application.MFC.set_flow_rate(j, control_output[j])
-
-
-        # elif self.application.UI.mpc_temperature_checkbox.isChecked():
-        #     avgT = self.application.temperature.get_temperature_average()[0]
-        #     setpoint = self.application.UI.mpc_setpoint
-        #     H = self.application.UI.mpc_prediction_horizon
-        #     lam = self.application.UI.mpc_control_weight
-        #     dt = self.application.UI.time_step
-
-        #     # 1. Compute normalized arrangement in [-1, 1]^n
-        #     arrangement = self.application.MPC.compute_arrangement(
-        #         avg_temperature=avgT,
-        #         setpoint=setpoint,
-        #         prediction_horizon=H,
-        #         control_weight=lam,
-        #         dt=dt
-        #     )
-
-        #     # 2. Apply to actuators
-        #     self.apply_mpc_arrangement(arrangement)
-
-        #     # 3. Optional diagnostic
-        #     print(f"[MPC] Arrangement: {np.round(arrangement, 2)}")
-
+            # #####################################
+            # 4) Compute and apply optimal flow rates using MPC
+            # ####################################
+            mpc_flow_command = mpc.compute_mpc_control_action(temperature_vector=temp_vec, 
+                                                            temperature_shape=(H_sub, W_sub),
+                                                            current_flow_rates=self.application.MFC.flow_rate.copy())
+            
+            self.set_flow_and_solenoid_states(mpc_flow_command)
 
     def apply_mpc_arrangement(self, arrangement: np.ndarray):
         """

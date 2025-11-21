@@ -1389,6 +1389,8 @@ class UI(QWidget):
         self.save_state_widget.setText(self.state_filename)
 
 
+        # Create a font object before using it
+        title_font = QFont()
         title_font.setBold(True)
 
         for i in range(self.layout.count()):
