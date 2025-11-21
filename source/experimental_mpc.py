@@ -24,7 +24,7 @@ import copy
 class ExperimentalMPCController:
     """Experimental MPC controller using a simulation model for prediction."""
 
-    def __init__(self, n_region=1, n_mfc=9, dt = 60.0):
+    def __init__(self, n_region=1, n_mfc=9, dt_mpc= 60.0):
         """Initialize the experimental MPC controller.
         :param n_region: Number of temperature regions to control (default: 1 for full-plate control)
         :param n_mfc: Number of MFCs available for control (default: 9)
@@ -43,13 +43,15 @@ class ExperimentalMPCController:
 
         # Default parameters for MPC (can be updated by the UI)
         self.prediction_horizon = 3  # Number of future steps to predict
+        self.control_horizon = 1  # Number of control steps to apply
         self.control_weight = 0.1  # Weight for control effort in cost function
         self.temperature_setpoint = 60.0  # Desired temperature setpoint in Celsius
         self.time_step = 60.0  # Time step in seconds
 
-    def compute_mpc_control_action(self, current_temperatures, current_flow_rates):
+    def compute_mpc_control_action(self, current_temperatures, temperature_shape, current_flow_rates):
         """Compute the optimal MFC flow rates using MPC.
         :param current_temperatures: Current temperatures of the regions
+        :param temperature_shape: Shape of the temperature array (H_sub, W_sub)
         :param current_flow_rates: Current flow rates of the MFCs
         :return: Optimal flow rates for the MFCs
         """
