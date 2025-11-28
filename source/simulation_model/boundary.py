@@ -26,9 +26,6 @@ class Boundary:
 
         self.dict_boundary_points = compute_boundary_dict(params.nx, params.ny, params.nz)
         self.convective_coefficient = self.set_initial_convective_coefficient()
-        
-        if params.zone:
-            self.compute_zones()
 
         self.BC_T = {}
         self.BC_flux = {}
@@ -36,14 +33,6 @@ class Boundary:
 
         self.inlet_configuration = params.initial_inlet_configuration
 
-        # Load the idw surrogate data if used
-        if params.idw_surrogate:
-            self.injector_state, self.data = self.load_idw_data(params.surrogate_path)
-        if params.nn_surrogate:
-            self.nn_surrogate, self.scaler, self.nn_pixel_per_row, self.nn_pixel_per_cols = self.load_nn_surrogate(params.surrogate_path)
-        if params.nn_5x1_surrogate:
-            self.nn_surrogate = self.load_5x1_surrogate(params.surrogate_path)
-            self.scaler = None
         if params.nn_3x3_surrogate:
             self.nn_surrogate = self. load_3x3_surrogate(params.surrogate_path)
             self.scaler = None

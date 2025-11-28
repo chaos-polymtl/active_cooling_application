@@ -141,9 +141,7 @@ class MeasureAndControlWorker(QObject):
             # #####################################
             # 4) Compute and apply optimal flow rates using MPC
             # ####################################
-            mpc_flow_command = mpc.compute_mpc_control_action(current_temperatures=temp_vec, 
-                                                            temperature_shape=(H_sub, W_sub),
-                                                            current_flow_rates=self.application.MFC.flow_rate.copy())
+            mpc_flow_command = mpc.compute_mpc_control_action(current_temperatures=temp_vec, temperature_shape=(H_sub, W_sub), current_flow_rates=self.application.MFC.flow_rate.copy())
             
             self.set_flow_and_solenoid_states(mpc_flow_command)
 
