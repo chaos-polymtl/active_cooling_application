@@ -18,6 +18,8 @@ from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
 from source.simulation_model.time_manager import TimeManager
 from source.simulation_model.params import ParametersHandler
 from scipy.optimize import minimize
+from src.adjoint_optimizer import AdjointTransient
+from src.data_manager import DataManager
 
 class ExperimentalMPCController:
     """Experimental MPC controller using a simulation model for prediction."""
@@ -205,9 +207,6 @@ class ExperimentalMPCController:
         current_T = model.get_temperature_face(face_id=5)
 
         # 4.3) run adjoint reconstruction and apply reconstructed h
-
-        from src.adjoint_optimizer import AdjointTransient
-        from src.data_manager import DataManager
 
         data_manager = DataManager(model.params, model.points)
 
