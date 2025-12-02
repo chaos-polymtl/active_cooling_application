@@ -17,32 +17,26 @@ import copy
 from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
 from source.simulation_model.time_manager import TimeManager
 from source.simulation_model.params import ParametersHandler
-from source.params_mpc import MPCParams 
 from scipy.optimize import minimize
-
-# Import MPC controller with simulation model
-# from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
-# from source.simulation_model.mpc_controller import MPCController
-# from source.simulation_model.data_manager import DataManager
-# from source.simulation_model.adjoint_optimizer import AdjointTransient
 
 class ExperimentalMPCController:
     """Experimental MPC controller using a simulation model for prediction."""
 
-    def __init__(self, n_region=1, n_mfc=9, verbose=False):
+    def __init__(self, n_region=1, n_mfc=9, mpc_prediction_horizon=3, mpc_control_horizon=1, mpc_control_weight=0.1, verbose=False):
         """Initialize the experimental MPC controller.
         :param n_region: Number of temperature regions to control (default: 1 for full-plate control)
         :param n_mfc: Number of MFCs available for control (default: 9)
         """
-        self.params = ParametersHandler()
+        self.params = ParametersHandler("/home/wiebke/Documents/07_experimental-3by3/2025-12-02-implementing-mpc-in-exp") #TODO: add entry for a parameter filepath
         self.n_region = n_region
         self.n_mfc = n_mfc
         self.verbose = verbose
 
         # Default parameters for MPC (can be updated by the UI)
-        self.prediction_horizon = 3  # Number of future steps to predict
-        self.control_horizon = 1  # Number of control steps to apply
-        self.control_weight = 0.1  # Weight for control effort in cost function
+        self.mpc_prediction_horizon = mpc_prediction_horizon  # Number of future steps to predict
+        self.mpc_control_horizon = mpc_control_horizon  # Number of control steps to apply
+        self.mpc_control_weight = mpc_control_weight  # Weight for control effort in cost function
+
         self.temperature_setpoint = 60.0  # Desired temperature setpoint in Celsius
         self.time_step = 60.0  # Time step in seconds
 
@@ -129,7 +123,7 @@ class ExperimentalMPCController:
         mse /= len(T_tops)
         cost = mse
 
-        for t in range(1, min(self.control_horizon, len(Q_sequence))):
+        for t in range(1, min(self.mpc_control_horizon, len(Q_sequence))):
             dQ = Q_sequence[t] - Q_sequence[t-1]
             cost += self.control_weight * np.sum(dQ**2)
 
@@ -138,7 +132,39 @@ class ExperimentalMPCController:
 
     def evaluate_cost(self, model, Q_sequence, face_id, target_temperature):
         return self.controller_cost_function(model, Q_sequence, face_id, target_temperature)
+    
+    def compute_gradient_over_horizon(self, model, Q_sequence, face_id, target_temperature, epsilon=0.1):
+        """
+        Compute the gradient of the cost function with respect to each Q_t,i using forward differences.
+        Output shape: (mpc_prediction_horizon, 5)
+        """
+        N, D = Q_sequence.shape
+        grad = np.zeros_like(Q_sequence)
+        base_cost = self.evaluate_cost(model, Q_sequence, face_id, target_temperature)
 
+        for t in range(N):
+            if t >= self.mpc_control_horizon:
+                # No gradient computation beyond control horizon
+                continue
+            for i in range(D):
+
+                # Use central difference 
+                Q_plus = Q_sequence.copy()
+                Q_minus = Q_sequence.copy()
+
+                Q_plus[t, i] += epsilon
+                Q_minus[t, i] -= epsilon
+
+                Q_plus[t, i] = np.clip(Q_plus[t, i], -1, 1)
+                Q_minus[t, i] = np.clip(Q_minus[t, i], -1, 1)
+
+                cost_plus = self.evaluate_cost(model, Q_plus, face_id, target_temperature)
+                cost_minus = self.evaluate_cost(model, Q_minus, face_id, target_temperature)
+
+                grad[t, i] = (cost_plus - cost_minus) / (2 * epsilon)
+
+
+        return grad
 
     def compute_mpc_control_action(self, current_temperatures, temperature_shape, current_flow_rates):
         """Compute the optimal MFC flow rates using MPC.

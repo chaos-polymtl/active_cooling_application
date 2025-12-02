@@ -133,10 +133,10 @@ class MeasureAndControlWorker(QObject):
 
             # Get the temperature setpoint and MPC parameters for the active region
             temperature_setpoint = mpc.temperature_setpoint
-            prediction_horizon = mpc.prediction_horizon
-            control_horizon = mpc.control_horizon
-            control_weight = mpc.control_weight
-            dt_mpc = mpc.time_step
+            # prediction_horizon = mpc.prediction_horizon
+            # control_horizon = mpc.control_horizon
+            # control_weight = mpc.control_weight
+            # dt_mpc = mpc.time_step
 
             # #####################################
             # 4) Compute and apply optimal flow rates using MPC

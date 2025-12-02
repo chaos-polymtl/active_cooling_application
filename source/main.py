@@ -61,7 +61,10 @@ class Application(QMainWindow):
 
         # Each region can be an "inlet" or an "outlet"
         self.region_modes = np.array(["inlet"] * n_region)
-        self.MPC = ExperimentalMPCController(n_region=1, n_mfc=9)
+        ph = 3  # MPC prediction horizon
+        ch = 1  # MPC control horizon
+        cw = 0.1  # MPC control weight
+        self.MPC = ExperimentalMPCController(n_region=1, n_mfc=9, mpc_prediction_horizon=ph, mpc_control_horizon=ch, mpc_control_weight=cw, verbose=False)
 
         # Create UI instance
         self.UI = UI()
