@@ -1,0 +1,66 @@
+# -----------------
+# Output information
+# -----------------
+
+save_output = False
+output_path = ../06_simulations-3by3/07_final-choices/2025-12-10-open-loop-perturb-h-200-Tinf-120-bump-0
+
+# -----------------
+# Time information
+# -----------------
+
+start_time = 0.0
+final_time = 300
+time_step  = 60
+
+# -------------------
+# Material properties
+# -------------------
+
+thermal_conductivity = 50  		# W/m*K
+density = 7800			        # kg/m³
+heat_capacity = 460			    # J/kg*K
+
+# -------------------
+# Plate dimensions
+# -------------------
+
+plate_dimensions = [0.24, 0.24, 0.03]
+
+# -------------------
+# Number of elements
+# -------------------
+
+nx = 10
+ny = 10
+nz = 10
+
+# -------------------
+# Initial condition
+# -------------------
+
+start_from_steady_state = False
+initial_condition = 25
+
+# -------------------
+# Boundary conditions
+# -------------------
+
+BC_types = no_flux, no_flux, no_flux, no_flux, surrogate, robin
+
+BC_T    = 0, 0, 0, 0, 0, 0
+BC_flux = 0, 0, 0, 0, 0, 0
+
+initial_convective_coefficient = 0, 0, 0, 0, 20, 20
+
+T_inf = 0, 0, 0, 0, 20, 25
+
+# -------------------
+# Surrogate section
+# -------------------
+
+nn_3x3_surrogate = True
+surrogate_path = ./source/simulation_model/3x3_surrogate.pth
+initial_inlet_configuration = 0, -1, 0,   -1, 0, -1,   0, -1, 0
+jet_diameter = 0.0127
+fluid_conductivity = 0.026

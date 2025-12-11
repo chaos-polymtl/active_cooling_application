@@ -14,6 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 
 import numpy as np
 import copy
+import os
 from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
 from source.simulation_model.time_manager import TimeManager
 from source.simulation_model.params import ParametersHandler
@@ -29,7 +30,7 @@ class ExperimentalMPCController:
         :param n_region: Number of temperature regions to control (default: 1 for full-plate control)
         :param n_mfc: Number of MFCs available for control (default: 9)
         """
-        self.params = ParametersHandler("/home/wiebke/Documents/07_experimental-3by3/02_mpc-implementation-in-exp/2025-12-10-match-heatgun-cooling") #TODO: add entry for a parameter filepath
+        self.params = ParametersHandler(os.path.join(os.path.dirname(__file__), "experimental_mpc_params.txt"))
         self.n_region = n_region
         self.n_mfc = n_mfc
         self.verbose = verbose
