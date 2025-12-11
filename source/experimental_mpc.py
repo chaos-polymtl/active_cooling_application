@@ -365,6 +365,10 @@ class ExperimentalMPCController:
         )
 
         Q_opt_sequence = result.x.reshape(N, D)
+
+        print("Q_opt_sequence:\n", Q_opt_sequence)
+        print("First control action Q0:", Q_opt_sequence[0])
+
         if self.mpc_control_horizon < N:
             Q_opt_sequence[self.mpc_control_horizon:] = Q_opt_sequence[self.mpc_control_horizon - 1]
         self.predicted_temperature = self.simulate_trajectory(predict_model, Q_opt_sequence, face_id, target_temperature)
