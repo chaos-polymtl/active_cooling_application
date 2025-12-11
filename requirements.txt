@@ -4,3 +4,10 @@ adafruit-circuitpython-dacx578
 numpy
 matplotlib
 PySide6
+scipy
+meshio
+tqdm
+torch
+scikit-learn
+deap
+matplotlib
