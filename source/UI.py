@@ -22,6 +22,8 @@ from matplotlib.ticker import MaxNLocator, FormatStrFormatter
 import matplotlib.style as mplstyle
 mplstyle.use('fast')
 # use('Agg')
+import matplotlib
+matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 
