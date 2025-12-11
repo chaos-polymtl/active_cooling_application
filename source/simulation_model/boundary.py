@@ -175,7 +175,7 @@ class Boundary:
         Function to load the 3x3 surrogate model. We do not return the scaler as this surrogate does not use it.
         """
         # Load the model from the path
-        model_data = torch.load(nn_surrogate_path, weights_only=False)
+        model_data = torch.load(nn_surrogate_path, map_location=torch.device('cpu'), weights_only=False)
         
         # Load the model
         model_state = model_data["model_state_dict"]
