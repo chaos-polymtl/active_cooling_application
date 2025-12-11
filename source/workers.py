@@ -295,4 +295,15 @@ class MeasureAndControlWorker(QObject):
 
             with open(self.application.UI.filename.replace('.csv', '_temp.csv'), 'a') as file:
                 np.savetxt(file, self.save_temperature_array, delimiter = ',', fmt = '%10.5f')
+
+    def shutdown(self):
+        """
+        Stop all flows and open one solenoid to release pressure when the application is closed.
+        """
+        print("Shutting down: stopping flows and opening solenoids.")
+
+        zero_flow_command = np.zeros(9) # All zeros, inlet mode, solenoid closed TODO: make function of actuators (so either 5 or 9 for our systems)
+        zero_flow_command[-1] = -1.0 # Last actuator as outlet, solenoid open
+
+        self.set_flow_and_solenoid_states(zero_flow_command)
         

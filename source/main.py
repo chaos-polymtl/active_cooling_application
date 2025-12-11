@@ -107,10 +107,12 @@ class Application(QMainWindow):
 
         # --- Zero MFCs and solenoids for safety ---
         try:
-            for j in range(self.n_region):
-                self.MFC.set_flow_rate(j, 0)
-                self.solenoid.set_solenoid_state(j, False)
-        except Exception:
+            # for j in range(self.n_region):
+            #     self.MFC.set_flow_rate(j, 0)
+            #     self.solenoid.set_solenoid_state(j, False)
+            self.measure_and_control_worker.shutdown()
+        except Exception as e:
+            print("Warning: worker shutdown failed", e)
             pass
 
         # --- Accept event ---
