@@ -217,7 +217,7 @@ class AdjointTransient:
             iteration += 1
 
         # write the h_new vector to a file
-        np.savetxt("reconstructed_h.csv", h_new, delimiter=",")
+        # np.savetxt("reconstructed_h.csv", h_new, delimiter=",")
 
         if return_h:
             return np.asarray(h_new, dtype=float)
