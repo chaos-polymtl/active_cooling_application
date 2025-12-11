@@ -5,12 +5,12 @@ from scipy.ndimage import gaussian_filter
 
 import copy
 from scipy.linalg import solve
-from src.finite_difference_3d import FiniteDifferenceSolverSS
-from src.finite_difference_3d import FiniteDifferenceSolver
-from src.finite_difference_3d import AdjointSolver
+from source.simulation_model.finite_difference_3d import FiniteDifferenceSolverSS
+from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
+from source.simulation_model.finite_difference_3d import AdjointSolver
 from scipy.optimize import minimize
 
-from src.time_manager import TimeManager
+from source.simulation_model.time_manager import TimeManager
 
 class AdjointTransient:
     def __init__(self, params, finite_difference, data_manager, target_snapshots=None):
@@ -212,7 +212,7 @@ class AdjointTransient:
             # Calculate the error as RMSE
             error = np.linalg.norm(direct_temperature_solutions - self.target_T, 2)/np.sqrt(len(self.target_T)*len(self.target_T[0]))
             
-            print("error: ", round(error, 8))
+            # print("error: ", round(error, 8))
 
             iteration += 1
 
@@ -304,7 +304,7 @@ class AdjointSS:
             current_T = new_T
 
             # Print logs
-            print(f'Iteration: {iteration}, Error: {error:.4f}')
+            # print(f'Iteration: {iteration}, Error: {error:.4f}')
 
             # Save adjoint output
             if self.params.adjoint_output_results:
@@ -315,7 +315,7 @@ class AdjointSS:
 
             iteration += 1
 
-        print(f'Iterations: {iteration}')
+        # print(f'Iterations: {iteration}')
 
 
     def save_adjoint_output(self, iteration, error, convective_coefficient, T, output_folder):

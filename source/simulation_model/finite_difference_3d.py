@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.sparse.linalg import bicgstab, gmres, spilu, LinearOperator, spsolve
 from scipy.sparse import lil_matrix, csr_matrix
-from src.boundary import Boundary
+from source.simulation_model.boundary import Boundary
 
-from src.utility import *
+from source.simulation_model.utility import *
 
 class FiniteDifferenceSolver:
     def __init__(self, params, time_manager):

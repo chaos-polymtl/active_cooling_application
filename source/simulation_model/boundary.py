@@ -3,7 +3,7 @@ import numpy as np
 import glob
 import os
 from scipy.interpolate import RegularGridInterpolator
-from src.utility import *
+from source.simulation_model.utility import *
 import torch 
 import torch.nn as nn
 from torch.nn.functional import tanh, leaky_relu
@@ -730,7 +730,7 @@ class Boundary:
             self.convective_coefficient[idx] = float(new_h)
             self.T_inf[idx] = new_T_inf_val
 
-        print(f"[Boundary] Reset face {face_id}: h = {new_h}, T_inf = {new_T_inf_val}.")
+        # print(f"[Boundary] Reset face {face_id}: h = {new_h}, T_inf = {new_T_inf_val}.")
     
     def apply_reconstructed_h(self, face_id, h_array, new_T_inf=None):
         """
@@ -760,7 +760,7 @@ class Boundary:
             self.convective_coefficient[index] = float(h_array[i])
             self.T_inf[index] = new_T_inf_val
         
-        print(f"[Boundary] Applied reconstructed h to face {face_id}.")
+        # print(f"[Boundary] Applied reconstructed h to face {face_id}.")
 
 class heat_predictor(nn.Module):
     def __init__(self, x_size, y_size, SIZE, NUMBER_OF_HIDDEN_LAYER, device):

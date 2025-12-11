@@ -1,14 +1,10 @@
-from src.time_manager import TimeManager
-from src.finite_difference_3d import FiniteDifferenceSolver, FiniteDifferenceSolverSS
-from src.adjoint_optimizer import AdjointSS, AdjointTransient
+from source.simulation_model.time_manager import TimeManager
+from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver, FiniteDifferenceSolverSS
+from source.simulation_model.adjoint_optimizer import AdjointSS, AdjointTransient
 
-from src.data_manager import DataManager
-from src.params import ParametersHandler
-from src.pid_controller import PIDController
-from src.mpc_controller import MPCController
-from src.genetic_mpc import GeneticMPCController
-
-from src.configuration_sweep import ConfigurationSweep
+from source.simulation_model.data_manager import DataManager
+from source.simulation_model.params import ParametersHandler
+# from source.simulation_model.mpc_controller import MPCController
 
 import numpy as np
 import sys
@@ -249,7 +245,7 @@ class Main:
                 finite_difference.boundary.set_inlet_configuration(control_output)
                 ##################################################################################
 
-                print(f"MPC output at t = {time_manager.current_time:.3f}: {control_output} | Cost = {final_cost:.2f}")
+                # print(f"MPC output at t = {time_manager.current_time:.3f}: {control_output} | Cost = {final_cost:.2f}")
 
             # Update the boundary condition with the PID output
             if params.apply_pid_control:
