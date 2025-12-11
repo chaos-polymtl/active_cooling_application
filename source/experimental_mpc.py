@@ -29,7 +29,7 @@ class ExperimentalMPCController:
         :param n_region: Number of temperature regions to control (default: 1 for full-plate control)
         :param n_mfc: Number of MFCs available for control (default: 9)
         """
-        self.params = ParametersHandler("/home/wiebke/Documents/07_experimental-3by3/2025-12-02-implementing-mpc-in-exp") #TODO: add entry for a parameter filepath
+        self.params = ParametersHandler("/home/wiebke/Documents/07_experimental-3by3/02_mpc-implementation-in-exp/2025-12-10-match-heatgun-cooling") #TODO: add entry for a parameter filepath
         self.n_region = n_region
         self.n_mfc = n_mfc
         self.verbose = verbose
@@ -54,6 +54,9 @@ class ExperimentalMPCController:
         
         # 3) Create the finite difference solver model
         model = FiniteDifferenceSolver(params=params_copy, time_manager=time_manager)
+
+        print("FD model grid:", model.params.nx, model.params.ny, model.params.nz)
+
 
         return model
     
@@ -88,6 +91,8 @@ class ExperimentalMPCController:
         # Set the temperature field in the FD model (assuming uniform in z)
         temperature_3D = np.repeat(temp_sized[:, :, np.newaxis], nz, axis=2) # shape (nx, ny, nz)
         model.T = temperature_3D.reshape(-1, order="F")
+
+        print("Mapped FD T range:", model.T.min(), model.T.max())
 
     def _apply_flow_to_boundary(self, model, flow_rates):
         """
@@ -183,6 +188,7 @@ class ExperimentalMPCController:
 
         # 3) Apply current flow rates to the model boundary
         self._apply_flow_to_boundary(model, current_flow_rates)
+        print("Boundary inlets:", model.boundary.inlet_configuration)
 
         # 4) Adjoint reconstruction of top boundary h(x,y) ###########################################
 
