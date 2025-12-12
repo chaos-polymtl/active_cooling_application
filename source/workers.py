@@ -148,7 +148,11 @@ class MeasureAndControlWorker(QObject):
 
             print("Applying MPC flow command:", flow_command)
 
+            # Apply flow command and solenoid states to hardware
             self.set_flow_and_solenoid_states(flow_command)
+
+            # Update the UI grid with flow command
+            self.flow_command_signal.emit(flow_command)
 
     def apply_mpc_arrangement(self, arrangement: np.ndarray):
         """
