@@ -61,6 +61,7 @@ class Application(QMainWindow):
 
         # Each region can be an "inlet" or an "outlet"
         self.region_modes = np.array(["inlet"] * n_region)
+        self.last_flow_command = np.zeros(n_region, dtype=float)
         ph = 3  # MPC prediction horizon
         ch = 1  # MPC control horizon
         cw = 0.1  # MPC control weight

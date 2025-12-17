@@ -214,6 +214,8 @@ class MeasureAndControlWorker(QObject):
         -1 => outlet (solenoid open, MFC 0, region_modes='outlet')
         >=0 => inlet  (solenoid closed, MFC=value clamped 0–300, region_modes='inlet')
         """
+        self.application.last_flow_command =np.array(flow_command, dtype=float)
+
         for j, val in enumerate(flow_command):
             try:
                 v = float(val)
@@ -237,7 +239,7 @@ class MeasureAndControlWorker(QObject):
         self.moveToThread(self.application.measure_and_control_thread)
 
         # Connect the worker's signal to the update_plot method
-        self.update_ui_signal.connect(lambda: self.application.UI.update_plot(self.application.time, self.application.temperature, self.application.MFC, self.application.region_modes))
+        self.update_ui_signal.connect(lambda: self.application.UI.update_plot(self.application.time, self.application.temperature, self.application.MFC, self.application.region_modes, self.application.last_flow_command))
 
         # Start the worker and the thread
         self.application.measure_and_control_thread.start()
