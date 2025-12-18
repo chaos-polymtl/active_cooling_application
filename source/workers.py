@@ -214,7 +214,7 @@ class MeasureAndControlWorker(QObject):
         -1 => outlet (solenoid open, MFC 0, region_modes='outlet')
         >=0 => inlet  (solenoid closed, MFC=value clamped 0–300, region_modes='inlet')
         """
-        self.application.last_flow_command =np.array(flow_command, dtype=float)
+        self.application.last_flow_command =np.array(flow_command, copy=True)
 
         for j, val in enumerate(flow_command):
             try:
