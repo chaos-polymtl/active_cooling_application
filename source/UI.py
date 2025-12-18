@@ -760,7 +760,132 @@ class UI(QWidget):
                 scheduler_file_line.setText(f'Invalid file: expected {expected_cols} columns (time + {self.n_region} regions), got {raw.shape[1]}')
                 return
             
+            self.scheduler_data = raw.astype(float)
 
+            # Update file display
+            scheduler_file_line.setText(self.scheduler_filename)
+
+            # Set initial "current time window" and "next change"
+            if self.scheduler_data.shape[0] > 1:
+                self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- " + str(self.scheduler_data[1][0]))
+                self.scheduler_change_time = self.scheduler_data[1][0]
+            else:
+                self.scheduler_current_time.setText(str(self.scheduler_data[0][0]) + " --- end")
+                self.scheduler_change_time = -1
+
+            # Print current state: -1 => OUT, >=0 => value
+            current = self.scheduler_data[0][1:]
+            outlet_print = [("OUT" if v == -1 else f"{int(v)}") for v in current]
+            self.scheduler_current_state.setText("[" + ", ".join(outlet_print) + "]")
+
+    def set_min_max_temperature_limits(self):
+        '''Set minimum and maximum temperature limits'''
+
+        # Get entry to min and max temperature
+        min_temperature = self.min_temperature_input.text()
+        max_temperature = self.max_temperature_input.text()
+
+        # If min temperature is not empty
+        if len(min_temperature) > 0:
+            self.temperature.min = float(min_temperature)
+            self.min_temperature_input.clear()
+            self.min_temperature_display.setText(min_temperature)
+
+        # If max temperature is not empty
+        if len(max_temperature) > 0:
+            self.temperature.max = float(max_temperature)
+            self.max_temperature_input.clear()
+            self.max_temperature_display.setText(max_temperature)
+
+        self.temperature_image = self.ax[1].imshow(self.temperature.temperature_grid, cmap="turbo", interpolation = None, vmin = self.temperature.min, vmax = self.temperature.max)
+
+        self.figure.heatmap_colorbar.remove()
+
+        self.figure.heatmap_colorbar = self.figure.colorbar(self.temperature_image)
+    
+    def toggle_mfc_temperature_edit(self):
+        '''Temperature/MFC control mode. Called when toggled'''
+
+        # If temperature control mode is enabled
+        # Restart setpoints for MFCs and temperature
+        self.flow_rate_setpoint = np.zeros(self.n_region)
+        self.temperature_setpoint = np.repeat(None, self.n_region)
+        
+        for i in range(self.n_region):
+            
+            # Reset MFCs flow rate
+            self.MFC.set_flow_rate(i, 0)
+
+        self.clear_layout(self.temperature_mfc_edit_layout)
+
+        if self.pid_temperature_checkbox.isChecked():
+            self.create_temperature_section()
+            self.temperature_setpoint_plot = np.empty_like(self.temperature_plot)
+        else:
+            self.create_mfc_section()
+
+    def toggle_mpc_temperature_edit(self):
+        '''MPC Temperature control mode. Called when toggled'''
+
+        # Clear current layout (remove MFC/PID inputs)
+        self.clear_layout(self.temperature_mfc_edit_layout)
+
+        if self.mpc_temperature_checkbox.isChecked():
+            # Store the current number of regions before switching to MPC
+            self.region_selector.clear()
+            self.region_selector.addItem("Region 0 (Full plate)")
+            self.region_selector.setEnabled(False)
+
+            # Keep region boundary inputs enabled (user defines the plate area)
+            for i in range(self.n_region_corners):
+                self.region_boundaries_input[i].setEnabled(True)
+                self.region_boundaries_display[i].setEnabled(True)
+
+            # Inform user
+            note = QLabel("MPC mode: single user-defined region active (set boundaries below).")
+            note.setStyleSheet("color: gray; font-style: italic;")
+            self.temperature_mfc_edit_layout.addWidget(note)
+
+            # Initialize MPC parameters (default values)
+            self.mpc_prediction_horizon = 5  # Prediction horizon
+            self.mpc_control_horizon = 1  # Control horizon
+            self.mpc_control_weight = 0.1  # Control weight
+            self.mpc_setpoint = 60.0  # Desired temperature setpoint
+            self.time_step = 60  # Time step for each control action in seconds
+
+            # Create horizontal layout for: MPC parameters | TTT grid
+            mpc_main_layout = QHBoxLayout()
+            self.temperature_mfc_edit_layout.addLayout(mpc_main_layout)
+
+            # Left column: MPC parameters
+            mpc_layout = QVBoxLayout()
+            mpc_main_layout.addLayout(mpc_layout)
+
+            # Right column: TicTacToe grid (3×3)
+            ttt_frame = QFrame()
+            ttt_frame.setFrameShape(QFrame.Box)
+            ttt_frame.setFrameShadow(QFrame.Raised)
+
+            ttt_frame_layout = QVBoxLayout()
+            ttt_frame.setLayout(ttt_frame_layout)
+
+            title = QLabel("MFC State (3×3 Grid)")
+            title.setStyleSheet("font-weight: bold;")
+            ttt_frame_layout.addWidget(title)
+
+            ttt_grid = QGridLayout()
+            ttt_frame_layout.addLayout(ttt_grid)
+
+            # Create 3×3 cells (if not created before)
+            self.tictactoe_cells = []
+            for i in range(3):
+                row = []
+                for j in range(3):
+                    cell = QLineEdit("---")
+                    cell.setReadOnly(True)
+                    cell.setEnabled(False)
+                    cell.setAlignment(Qt.AlignCenter)
+                    cell.setFixedWidth(60)
                     cell.setFixedHeight(45)
                     cell.setStyleSheet("border: 1px solid black;")
                     ttt_grid.addWidget(cell, i, j)
