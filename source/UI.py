@@ -1258,7 +1258,7 @@ class UI(QWidget):
             # Update Tic-Tac-Toe display with current flow rates and region modes
             # Only if in MPC temperature control mode and Tic-Tac-Toe cells exist
             if self.mpc_temperature_checkbox.isChecked() and hasattr(self, "tictactoe_cells"):
-                self.update_tictactoe(self.last_flow_command)
+                self.update_tictactoe(flow_command)
 
     def update_single_plot(self, i):
         '''Update plot information per region'''

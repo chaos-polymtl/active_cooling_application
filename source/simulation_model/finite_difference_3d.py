@@ -113,7 +113,7 @@ class FiniteDifferenceSolver:
         """
         ilu_preconditioner = spilu(A)
         M = LinearOperator(A.shape, ilu_preconditioner.solve)
-        solution, _ = function(A, rhs, x0=self.T, M=M, tol=1e-9)
+        solution, _ = function(A, rhs, x0=self.T, M=M, rtol=1e-9)
 
         return solution
     
@@ -460,7 +460,7 @@ class AdjointSolver:
         """
         ilu_preconditioner = spilu(A)
         M = LinearOperator(A.shape, ilu_preconditioner.solve)
-        solution, _ = function(A, rhs, x0=self.lambda_t, M=M, tol=1e-9)
+        solution, _ = function(A, rhs, x0=self.lambda_t, M=M, rtol=1e-9)
 
         return solution
 
