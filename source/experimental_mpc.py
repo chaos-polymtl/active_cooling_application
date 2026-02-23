@@ -95,6 +95,84 @@ class ExperimentalMPCController:
 
         print("Mapped FD T range:", model.T.min(), model.T.max())
 
+    def _jet_centers_xy(self, model, D: int):
+        """
+        Return jet center locations in the (x,y) plane of the top face.
+        Assumptions:
+        - D==5  : 5x1 line along x, centered in y
+        - D==9  : 3x3 grid over (x,y), row-major
+        - else  : evenly spaced along x, centered in y
+        """
+        Lx, Ly, _ = model.params.plate_dimensions
+        y_mid = 0.5 * Ly
+
+        if D == 5:
+            xs = np.linspace(0.0, Lx, 5)
+            return np.column_stack([xs, np.full(5, y_mid)])
+
+        if D == 9:
+            xs = np.linspace(0.0, Lx, 3)
+            ys = np.linspace(0.0, Ly, 3)
+            centers = [(x, y) for y in ys for x in xs]
+            return np.array(centers, dtype=float)
+
+        xs = np.linspace(0.0, Lx, D)
+        return np.column_stack([xs, np.full(D, y_mid)])
+
+    def _initial_outlet_from_top_hotspot(
+        self,
+        current_model,
+        top_face_id: int = 5,
+        prev_Q_init=None,
+        prev_hot_xy=None,
+        move_threshold=0.1,
+        hotspot_top_n: int = 25,
+        hotspot_power: float = 1.0,
+    ):
+        """
+        If hotspot moved (distance > move_threshold): re-init Q_init as all closed except farthest outlet.
+        Else: keep previous Q_init.
+
+        Hotspot position is computed as a center-of-mass (COM) of the top-N hottest nodes on the face.
+        Returns: (Q_init, hot_xy_current)
+        """
+        T_face = current_model.get_temperature_face(top_face_id)
+        face_nodes = current_model.boundary.dict_boundary_points[top_face_id]
+
+        n = int(min(max(hotspot_top_n, 1), len(T_face)))
+        top_idx = np.argpartition(T_face, -n)[-n:]
+        top_global = np.asarray(face_nodes, dtype=int)[top_idx]
+
+        pts = current_model.points[top_global]
+        xy = pts[:, :2]
+
+        T_top = np.asarray(T_face, dtype=float)[top_idx]
+        w = (T_top - T_top.min())
+        if hotspot_power != 1.0:
+            w = np.power(w, hotspot_power)
+        w = np.maximum(w, 1e-12)
+
+        hot_xy = (w[:, None] * xy).sum(axis=0) / w.sum()
+
+        moved = False
+        if prev_hot_xy is not None:
+            prev_hot_xy = np.asarray(prev_hot_xy, dtype=float)
+            dist = float(np.linalg.norm(hot_xy - prev_hot_xy))
+            moved = dist > move_threshold
+
+        D = len(current_model.boundary.inlet_configuration)
+
+        if (prev_Q_init is None) or moved:
+            jet_xy = self._jet_centers_xy(current_model, D)
+            d2 = (jet_xy[:, 0] - hot_xy[0]) ** 2 + (jet_xy[:, 1] - hot_xy[1]) ** 2
+            j_far = int(np.argmax(d2))
+
+            Q_init = np.zeros(D, dtype=float)
+            Q_init[j_far] = -1.0
+            return Q_init, hot_xy
+
+        return np.array(prev_Q_init, dtype=float).copy(), hot_xy
+
     def _apply_flow_to_boundary(self, model, flow_rates):
         """
         Apply the MFC flow rates to the model boundary conditions.
@@ -131,9 +209,10 @@ class ExperimentalMPCController:
         mse /= len(T_tops)
         cost = mse
 
-        for t in range(1, min(self.mpc_control_horizon, len(Q_sequence))):
+        mpc_control_horizon = min(self.mpc_control_horizon, len(Q_sequence))
+        for t in range(1, mpc_control_horizon):
             dQ = Q_sequence[t] - Q_sequence[t-1]
-            cost += self.control_weight * np.sum(dQ**2)
+            cost += self.control_weight * np.sum(dQ**2) / mpc_control_horizon
 
         return cost
 
@@ -241,11 +320,24 @@ class ExperimentalMPCController:
         N = self.mpc_prediction_horizon
         D = len(predict_model.boundary.inlet_configuration) # number of actuators
         
-        if hasattr(self, 'previous_Q_sequence'):
-            Q0_sequence = np.vstack([self.previous_Q_sequence[1:], self.previous_Q_sequence[-1]])
-        else:
-            current_Q = predict_model.boundary.inlet_configuration
-            Q0_sequence = np.tile(current_Q, (N, 1))  # Initialize with the current Q repeated N times
+        # Hotspot-based initialization with memory (same logic as simulation MPC)
+        prev_Q_init = getattr(self, "prev_Q_init", None)
+        prev_hot_xy = getattr(self, "prev_hot_xy", None)
+
+        Q_init, hot_xy = self._initial_outlet_from_top_hotspot(
+            model,
+            top_face_id=5,
+            prev_Q_init=prev_Q_init,
+            prev_hot_xy=prev_hot_xy,
+            move_threshold=getattr(model.params, "mpc_hotspot_move_threshold", 0.1),
+            hotspot_top_n=getattr(model.params, "mpc_hotspot_top_n", 25),
+            hotspot_power=getattr(model.params, "mpc_hotspot_power", 1.0),
+        )
+
+        self.prev_Q_init = Q_init.copy()
+        self.prev_hot_xy = hot_xy.copy()
+
+        Q0_sequence = np.tile(Q_init, (N, 1))
             
         # Enforce move-blocking on the initial guess
         if self.mpc_control_horizon < N:
@@ -284,6 +376,12 @@ class ExperimentalMPCController:
                 Q_seq[self.mpc_control_horizon:] = Q_seq[self.mpc_control_horizon - 1]
             # compute gradient
             grad_matrix = self.compute_gradient_over_horizon(predict_model, Q_seq, face_id, target_temperature)
+            if getattr(model.params, "apply_gradient_mask", False):
+                keep_jet = getattr(model.params, "gradient_keep_jets", None)
+                if keep_jet is not None:
+                    mask = np.zeros_like(grad_matrix)
+                    mask[:, keep_jet] = 1.0
+                    grad_matrix *= mask
             return grad_matrix.flatten()
 
         def callback(Q_flat):
@@ -378,29 +476,3 @@ class ExperimentalMPCController:
 
         # 8) Return only the first control action (Q0), the final cost, and the predicted temperature trajectory
         return Q_opt_sequence[0], result.fun, self.predicted_temperature 
-
-
-
-
-
-        # # Run adjoint optimization to compute optimal control actions
-        # optimal_flow_rates = self.adjoint_optimizer.optimize(
-        #     prediction_horizon=self.prediction_horizon,
-        #     control_weight=self.control_weight,
-        #     temperature_setpoint=self.temperature_setpoint,
-        #     time_step=self.time_step
-        # )
-
-        #  # 2) Prepare Q-sequence (initial guess)
-        # N = self.prediction_horizon
-        # D = self.n_mfc
-
-        # Q0 = np.zeros(D)
-        # Q_sequence = np.tile(Q0, (N, 1))
-
-        # # 3) Simple descent (placeholder)
-        # best_cost = self.evaluate_cost(model, Q_sequence, face_id=0,
-        #                             target_temperature=self.temperature_setpoint)
-
-        # # 4) Return the first control action
-        # return optimal_flow_rates 
