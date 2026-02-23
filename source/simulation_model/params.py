@@ -9,7 +9,7 @@ class ParametersHandler:
         self.output_path = "output"
         self.start_time = 0
         self.final_time = 300.0
-        self.time_step = 60.0
+        self.time_step = 30.0
         self.thermal_conductivity = 50
         self.density = 7800
         self.heat_capacity = 460
