@@ -108,12 +108,14 @@ class Application(QMainWindow):
 
         # --- Zero MFCs and solenoids for safety ---
         try:
-            # for j in range(self.n_region):
-            #     self.MFC.set_flow_rate(j, 0)
-            #     self.solenoid.set_solenoid_state(j, False)
+            zero = np.zeros(len(self.MFC.flow_rate))
+            self.measure_and_control_worker.set_flow_and_solenoid_states(zero)
+
             self.measure_and_control_worker.shutdown()
+
         except Exception as e:
-            print("Warning: worker shutdown failed", e)
+            print("Error while shutting down:", e)
+
             pass
 
         # --- Accept event ---
