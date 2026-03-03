@@ -89,7 +89,7 @@ class MeasureAndControlWorker(QObject):
             # ####################################
             # 1) MPC updates at a selected time interval
             # ####################################
-            dt = self.application.UI.time_step
+            dt = self.application.time_step
             t = self.application.time
 
             if not hasattr(self, "next_mpc_time"):
