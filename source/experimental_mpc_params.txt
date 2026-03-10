@@ -31,9 +31,9 @@ plate_dimensions = [0.24, 0.24, 0.03]
 # Number of elements
 # -------------------
 
-nx = 10
-ny = 10
-nz = 10
+nx = 5
+ny = 5
+nz = 5
 
 # -------------------
 # Initial condition
