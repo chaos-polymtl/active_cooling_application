@@ -33,7 +33,7 @@ plate_dimensions = [0.24, 0.24, 0.03]
 
 nx = 5
 ny = 5
-nz = 5
+nz = 4
 
 # -------------------
 # Initial condition
