@@ -15,6 +15,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 import numpy as np
 import copy
 import os
+import time
 from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
 from source.simulation_model.time_manager import TimeManager
 from source.simulation_model.params import ParametersHandler
@@ -260,6 +261,9 @@ class ExperimentalMPCController:
         :param current_flow_rates: Current flow rates of the MFCs
         :return: Optimal flow rates for the MFCs
         """
+        start_time = time.time()
+        print(f"[MPC] iteration start at t={start_time:.2f}")
+
         # 1) Build simulation model
         model = self._build_simulation_model()
 
@@ -473,6 +477,8 @@ class ExperimentalMPCController:
 
         self.previous_Q_sequence = Q_opt_sequence
 
+        end_time = time.time()
+        print(f"[MPC] iteration end at t={end_time:.2f}, duration: {end_time - start_time:.2f} seconds")
 
         # 8) Return only the first control action (Q0), the final cost, and the predicted temperature trajectory
         return Q_opt_sequence[0], result.fun, self.predicted_temperature 
