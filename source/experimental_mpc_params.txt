@@ -31,8 +31,8 @@ plate_dimensions = [0.24, 0.24, 0.03]
 # Number of elements
 # -------------------
 
-nx = 5
-ny = 5
+nx = 4
+ny = 4
 nz = 4
 
 # -------------------
