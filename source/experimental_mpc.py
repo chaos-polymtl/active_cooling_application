@@ -462,7 +462,7 @@ class ExperimentalMPCController:
             bounds=bounds,
             constraints=constraints,
             method='SLSQP',
-            options={'maxiter': 50, 'ftol': 1e-6, 'disp': True},
+            options={'maxiter': 50, 'ftol': 1e-2, 'disp': True},
             callback=callback
         )
 
