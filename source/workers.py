@@ -154,7 +154,7 @@ class MeasureAndControlWorker(QObject):
                 return
 
             # Snapshot current state for MPC inputs
-            grid = self.application.temperature.temperature_grid # full camera grid
+            grid = self.application.temperature.temperature_grid.copy() # full camera grid
             # region 0 boundaries (from GUI)
             x_min, x_max, y_min, y_max = self.application.UI.region_boundaries[0]
             # clamping
