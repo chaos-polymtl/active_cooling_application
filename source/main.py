@@ -90,7 +90,7 @@ class Application(QMainWindow):
     def closeEvent(self, event):
         """Stop worker thread and close the application."""
 
-        # --- Stop the worker safely in its own thread ---
+        # Stop the worker safely in its own thread
         try:
             if hasattr(self, "measure_and_control_worker"):
                 # Emit stop signal (worker.stop() runs inside worker thread)
@@ -98,27 +98,23 @@ class Application(QMainWindow):
         except Exception as e:
             print("Warning: failed to emit stop signal", e)
 
-        # --- Tell the thread to quit and wait ---
+        # Tell the thread to quit and wait
         try:
             if hasattr(self, "measure_and_control_thread"):
                 self.measure_and_control_thread.quit()
-                self.measure_and_control_thread.wait(2000)
+                self.measure_and_control_thread.wait(120000)  # wait up to 2 minutes for thread to finish
         except Exception as e:
             print("Warning: failed to quit thread", e)
 
-        # --- Zero MFCs and solenoids for safety ---
+        # Zero MFCs and solenoids for safety
         try:
             zero = np.zeros(len(self.MFC.flow_rate))
             self.measure_and_control_worker.set_flow_and_solenoid_states(zero)
-
             self.measure_and_control_worker.shutdown()
-
         except Exception as e:
             print("Error while shutting down:", e)
-
             pass
 
-        # --- Accept event ---
         event.accept()
 
     @staticmethod

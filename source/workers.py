@@ -38,7 +38,7 @@ class MPCWorker(QObject):
             # Force aligned contiguous copies
             temp_vec = np.ascontiguousarray(temp_vec, dtype=np.float64)
             flow_rates = np.ascontiguousarray(flow_rates, dtype=np.float64)
-            
+
             Q0, cost, _ = self._mpc.compute_mpc_control_action(
                 current_temperatures=temp_vec,
                 temperature_shape=temperature_shape,
@@ -286,7 +286,7 @@ class MeasureAndControlWorker(QObject):
             print(e)
 
         self._mpc_thread.quit()
-        self._mpc_thread.wait(3000)
+        self._mpc_thread.wait(120000)  # wait up to 2 minutes for MPC thread to finish
             
     def get_time(self):
         self.application.time = self.elapsed_timer.elapsed() / 1000
