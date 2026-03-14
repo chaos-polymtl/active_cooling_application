@@ -35,6 +35,10 @@ class MPCWorker(QObject):
     def solve(self, temp_vec, temperature_shape, flow_rates):
         self._busy = True
         try:
+            # Force aligned contiguous copies
+            temp_vec = np.ascontiguousarray(temp_vec, dtype=np.float64)
+            flow_rates = np.ascontiguousarray(flow_rates, dtype=np.float64)
+            
             Q0, cost, _ = self._mpc.compute_mpc_control_action(
                 current_temperatures=temp_vec,
                 temperature_shape=temperature_shape,
