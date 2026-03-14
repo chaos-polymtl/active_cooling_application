@@ -57,9 +57,12 @@ class ExperimentalMPCController:
         # 3) Create the finite difference solver model
         model = FiniteDifferenceSolver(params=params_copy, time_manager=time_manager)
 
+        # Force alligned buffers on ARM
+        model.T = np.ascontiguousarray(model.T, dtype=np.float64)
+        if hasattr(model, 'points'):
+            model.points = np.ascontiguousarray(model.points, dtype=np.float64)
+
         print("FD model grid:", model.params.nx, model.params.ny, model.params.nz)
-
-
         return model
     
     def _set_initial_temperature_from_camera(self, model, current_temperatures, temperature_shape):
@@ -187,6 +190,11 @@ class ExperimentalMPCController:
     
     def simulate_trajectory(self, model, Q_sequence, face_id, target_temperature):
         model = copy.deepcopy(model)
+
+        model.T = np.ascontiguousarray(model.T, dtype=np.float64)
+        if hasattr(model, 'points'):
+            model.points = np.ascontiguousarray(model.points, dtype=np.float64)
+
         T_tops = {}
 
         for step, Q in enumerate(Q_sequence):
@@ -319,6 +327,10 @@ class ExperimentalMPCController:
 
         # Use the controller's internal model for prediction
         predict_model = copy.deepcopy(model)
+
+        predict_model.T = np.ascontiguousarray(predict_model.T, dtype=np.float64)
+        if hasattr(predict_model, 'points'):
+            predict_model.points = np.ascontiguousarray(predict_model.points, dtype=np.float64)
 
         # 4) initialize Q sequence
         N = self.mpc_prediction_horizon
