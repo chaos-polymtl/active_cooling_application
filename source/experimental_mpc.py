@@ -306,10 +306,10 @@ class ExperimentalMPCController:
 
         # 4.3) run adjoint reconstruction and apply reconstructed h
 
-        data_manager = DataManager(model.params, model.points)
-
-        # Choose adjoint solver type
-        adjoint = AdjointTransient(model.params, model, data_manager, target_snapshots=[previous_T, current_T])
+        adjoint_params = copy.deepcopy(model.params)
+        adjoint_model  = copy.deepcopy(model)
+        data_manager = DataManager(adjoint_params, adjoint_model.points)
+        adjoint = AdjointTransient(adjoint_params, adjoint_model, data_manager, target_snapshots=[previous_T.copy(), current_T.copy()])
 
         h_reconstructed = adjoint.run_nonlinear(return_h=True)
 
