@@ -5,6 +5,7 @@ from scipy.ndimage import gaussian_filter
 
 import copy
 from scipy.linalg import solve
+from source.experimental_mpc import _copy_boundary_shared_surrogate
 from source.simulation_model.finite_difference_3d import FiniteDifferenceSolverSS
 from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
 from source.simulation_model.finite_difference_3d import AdjointSolver
@@ -113,7 +114,8 @@ class AdjointTransient:
             # Restart the time manager at every iteration
             time_manager = TimeManager(self.params)
             _fd_new = FiniteDifferenceSolver(self.params, time_manager)
-            _fd_new.boundary = copy.deepcopy(self.finite_difference.boundary)  # reuse preloaded boundary
+            from source.experimental_mpc import _copy_boundary_shared_surrogate
+            _fd_new.boundary = _copy_boundary_shared_surrogate(self.finite_difference.boundary)
             self.finite_difference = _fd_new
             time_step = 0
             # Set the initial condition for the direct problem - TODO INTERPOLATE THE INITIAL CONDITION

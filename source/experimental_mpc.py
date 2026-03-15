@@ -23,19 +23,22 @@ from scipy.optimize import minimize
 from source.simulation_model.adjoint_optimizer import AdjointTransient
 from source.simulation_model.data_manager import DataManager
 
-def _deepcopy_model(model):
-    """Full isolated copy including any PyTorch surrogate in the boundary."""
+def _copy_boundary_shared_surrogate(boundary):
+    """Shallow-copy boundary, sharing torch modules but copying numpy arrays."""
     import torch
-    m = copy.deepcopy(model)
-    # If boundary contains a PyTorch surrogate, deepcopy its state dict
-    # to ensure completely independent weights buffers
-    if hasattr(m, 'boundary'):
-        for attr_name in vars(m.boundary):
-            attr = getattr(m.boundary, attr_name)
-            if isinstance(attr, torch.nn.Module):
-                new_module = copy.deepcopy(attr)
-                setattr(m.boundary, attr_name, new_module)
-    return m
+    new_b = copy.copy(boundary)
+    for attr_name in vars(boundary):
+        attr = getattr(boundary, attr_name)
+        if isinstance(attr, torch.nn.Module):
+            setattr(new_b, attr_name, attr)
+        elif isinstance(attr, np.ndarray):
+            setattr(new_b, attr_name, attr.copy())
+        else:
+            try:
+                setattr(new_b, attr_name, copy.deepcopy(attr))
+            except Exception:
+                setattr(new_b, attr_name, attr)
+    return new_b
 
 class ExperimentalMPCController:
     """Experimental MPC controller using a simulation model for prediction."""
@@ -75,18 +78,8 @@ class ExperimentalMPCController:
         params_copy = copy.deepcopy(self.params)
         model = FiniteDifferenceSolver(params=params_copy, time_manager=time_manager)
 
-        # If we have a preloaded boundary, replace the freshly loaded one with a
-        # deepcopy of it — avoids torch.load() being called from the MPC thread
         if self._pretrained_boundary is not None:
-            import torch
-            new_boundary = copy.deepcopy(self._pretrained_boundary)
-            # Deepcopy doesn't fully isolate torch modules — copy state dict explicitly
-            for attr_name in vars(new_boundary):
-                attr = getattr(new_boundary, attr_name)
-                if isinstance(attr, torch.nn.Module):
-                    fresh = copy.deepcopy(attr)
-                    setattr(new_boundary, attr_name, fresh)
-            model.boundary = new_boundary
+            model.boundary = _copy_boundary_shared_surrogate(self._pretrained_boundary)
 
         model.T = np.ascontiguousarray(model.T, dtype=np.float64)
         if hasattr(model, 'points'):
@@ -219,7 +212,7 @@ class ExperimentalMPCController:
         model.boundary.set_inlet_configuration(Q)
     
     def simulate_trajectory(self, model, Q_sequence, face_id, target_temperature):
-        model = _deepcopy_model(model)
+        model = copy.deepcopy(model)
 
         model.T = np.ascontiguousarray(model.T, dtype=np.float64)
         if hasattr(model, 'points'):
@@ -336,8 +329,9 @@ class ExperimentalMPCController:
 
         # 4.3) run adjoint reconstruction and apply reconstructed h
 
-        adjoint_params = _deepcopy_model(model.params)
-        adjoint_model  = _deepcopy_model(model)
+        adjoint_params = copy.deepcopy(model.params)
+        adjoint_model  = copy.deepcopy(model)
+        adjoint_model.boundary = _copy_boundary_shared_surrogate(model.boundary)
         data_manager = DataManager(adjoint_params, adjoint_model.points)
         adjoint = AdjointTransient(adjoint_params, adjoint_model, data_manager, target_snapshots=[previous_T.copy(), current_T.copy()])
 
@@ -356,7 +350,7 @@ class ExperimentalMPCController:
         ###############################################################################
 
         # Use the controller's internal model for prediction
-        predict_model = _deepcopy_model(model)
+        predict_model = copy.deepcopy(model)
 
         predict_model.T = np.ascontiguousarray(predict_model.T, dtype=np.float64)
         if hasattr(predict_model, 'points'):
