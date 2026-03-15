@@ -23,6 +23,20 @@ from scipy.optimize import minimize
 from source.simulation_model.adjoint_optimizer import AdjointTransient
 from source.simulation_model.data_manager import DataManager
 
+def _deepcopy_model(model):
+    """Full isolated copy including any PyTorch surrogate in the boundary."""
+    import torch
+    m = copy.deepcopy(model)
+    # If boundary contains a PyTorch surrogate, deepcopy its state dict
+    # to ensure completely independent weights buffers
+    if hasattr(m, 'boundary'):
+        for attr_name in vars(m.boundary):
+            attr = getattr(m.boundary, attr_name)
+            if isinstance(attr, torch.nn.Module):
+                new_module = copy.deepcopy(attr)
+                setattr(m.boundary, attr_name, new_module)
+    return m
+
 class ExperimentalMPCController:
     """Experimental MPC controller using a simulation model for prediction."""
 
@@ -46,27 +60,13 @@ class ExperimentalMPCController:
 
         self.system_model = None # system_model will be built before each MPC computation
 
-    def _deepcopy_model(model):
-        """Full isolated copy including any PyTorch surrogate in the boundary."""
-        import torch
-        m = copy.deepcopy(model)
-        # If boundary contains a PyTorch surrogate, deepcopy its state dict
-        # to ensure completely independent weights buffers
-        if hasattr(m, 'boundary'):
-            for attr_name in vars(m.boundary):
-                attr = getattr(m.boundary, attr_name)
-                if isinstance(attr, torch.nn.Module):
-                    new_module = copy.deepcopy(attr)
-                    setattr(m.boundary, attr_name, new_module)
-        return m
-
     def _build_simulation_model(self):
         """Create a finite difference 3D simulation model of the cooling plate."""
         # 1) Create a time manager starting at 0
         time_manager = TimeManager(self.params)
 
         # 2) Create a copy of params 
-        params_copy = self._deepcopy_model(self.params)
+        params_copy = _deepcopy_model(self.params)
         
         # 3) Create the finite difference solver model
         model = FiniteDifferenceSolver(params=params_copy, time_manager=time_manager)
@@ -203,7 +203,7 @@ class ExperimentalMPCController:
         model.boundary.set_inlet_configuration(Q)
     
     def simulate_trajectory(self, model, Q_sequence, face_id, target_temperature):
-        model = self._deepcopy_model(model)
+        model = _deepcopy_model(model)
 
         model.T = np.ascontiguousarray(model.T, dtype=np.float64)
         if hasattr(model, 'points'):
@@ -320,8 +320,8 @@ class ExperimentalMPCController:
 
         # 4.3) run adjoint reconstruction and apply reconstructed h
 
-        adjoint_params = self._deepcopy_model(model.params)
-        adjoint_model  = self._deepcopy_model(model)
+        adjoint_params = _deepcopy_model(model.params)
+        adjoint_model  = _deepcopy_model(model)
         data_manager = DataManager(adjoint_params, adjoint_model.points)
         adjoint = AdjointTransient(adjoint_params, adjoint_model, data_manager, target_snapshots=[previous_T.copy(), current_T.copy()])
 
@@ -340,7 +340,7 @@ class ExperimentalMPCController:
         ###############################################################################
 
         # Use the controller's internal model for prediction
-        predict_model = self._deepcopy_model(model)
+        predict_model = _deepcopy_model(model)
 
         predict_model.T = np.ascontiguousarray(predict_model.T, dtype=np.float64)
         if hasattr(predict_model, 'points'):
