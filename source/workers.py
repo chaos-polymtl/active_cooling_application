@@ -33,6 +33,8 @@ class MPCWorker(QObject):
     
     @Slot(object, object, object)
     def solve(self, temp_vec, temperature_shape, flow_rates):
+        import torch
+        torch.set_num_threads(1)  # force PyTorch to use only one thread in this worker to avoid oversubscription
         self._busy = True
         try:
             # Force aligned contiguous copies
