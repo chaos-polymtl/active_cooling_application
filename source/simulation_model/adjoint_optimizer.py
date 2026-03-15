@@ -114,7 +114,7 @@ class AdjointTransient:
             # Restart the time manager at every iteration
             time_manager = TimeManager(self.params)
             _fd_new = FiniteDifferenceSolver(self.params, time_manager)
-            from source.experimental_mpc import _copy_boundary_shared_surrogate
+            from source.simulation_model.utility import _copy_boundary_shared_surrogate
             _fd_new.boundary = _copy_boundary_shared_surrogate(self.finite_difference.boundary)
             self.finite_difference = _fd_new
             time_step = 0

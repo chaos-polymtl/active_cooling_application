@@ -1,5 +1,23 @@
 # utility.py 
+import copy
 import numpy as np
+
+def _copy_boundary_shared_surrogate(boundary):
+    """Shallow-copy boundary, sharing torch modules but copying numpy arrays."""
+    import torch
+    new_b = copy.copy(boundary)
+    for attr_name in vars(boundary):
+        attr = getattr(boundary, attr_name)
+        if isinstance(attr, torch.nn.Module):
+            setattr(new_b, attr_name, attr)
+        elif isinstance(attr, np.ndarray):
+            setattr(new_b, attr_name, attr.copy())
+        else:
+            try:
+                setattr(new_b, attr_name, copy.deepcopy(attr))
+            except Exception:
+                setattr(new_b, attr_name, attr)
+    return new_b
 
 def flatten_index(i, j, k, nx, ny):
         """

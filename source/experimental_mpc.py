@@ -22,6 +22,7 @@ from source.simulation_model.params import ParametersHandler
 from scipy.optimize import minimize
 from source.simulation_model.adjoint_optimizer import AdjointTransient
 from source.simulation_model.data_manager import DataManager
+from source.simulation_model.utility import _copy_boundary_shared_surrogate
 
 def _copy_boundary_shared_surrogate(boundary):
     """Shallow-copy boundary, sharing torch modules but copying numpy arrays."""
