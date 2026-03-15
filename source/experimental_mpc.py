@@ -60,18 +60,34 @@ class ExperimentalMPCController:
 
         self.system_model = None # system_model will be built before each MPC computation
 
-    def _build_simulation_model(self):
-        """Create a finite difference 3D simulation model of the cooling plate."""
-        # 1) Create a time manager starting at 0
-        time_manager = TimeManager(self.params)
+        self._pretrained_boundary = None
+        self._preload_surrogate()
 
-        # 2) Create a copy of params 
-        params_copy = _deepcopy_model(self.params)
-        
-        # 3) Create the finite difference solver model
+    def _preload_surrogate(self):
+        """Load the PyTorch surrogate once on the main thread at startup."""
+        import torch
+        model = self._build_simulation_model()
+        # Store the fully loaded boundary (with surrogate weights) as a template
+        self._pretrained_boundary = model.boundary
+
+    def _build_simulation_model(self):
+        time_manager = TimeManager(self.params)
+        params_copy = copy.deepcopy(self.params)
         model = FiniteDifferenceSolver(params=params_copy, time_manager=time_manager)
 
-        # Force alligned buffers on ARM
+        # If we have a preloaded boundary, replace the freshly loaded one with a
+        # deepcopy of it — avoids torch.load() being called from the MPC thread
+        if self._pretrained_boundary is not None:
+            import torch
+            new_boundary = copy.deepcopy(self._pretrained_boundary)
+            # Deepcopy doesn't fully isolate torch modules — copy state dict explicitly
+            for attr_name in vars(new_boundary):
+                attr = getattr(new_boundary, attr_name)
+                if isinstance(attr, torch.nn.Module):
+                    fresh = copy.deepcopy(attr)
+                    setattr(new_boundary, attr_name, fresh)
+            model.boundary = new_boundary
+
         model.T = np.ascontiguousarray(model.T, dtype=np.float64)
         if hasattr(model, 'points'):
             model.points = np.ascontiguousarray(model.points, dtype=np.float64)

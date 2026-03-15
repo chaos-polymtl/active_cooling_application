@@ -112,7 +112,9 @@ class AdjointTransient:
 
             # Restart the time manager at every iteration
             time_manager = TimeManager(self.params)
-            self.finite_difference = FiniteDifferenceSolver(self.params, time_manager)
+            _fd_new = FiniteDifferenceSolver(self.params, time_manager)
+            _fd_new.boundary = copy.deepcopy(self.finite_difference.boundary)  # reuse preloaded boundary
+            self.finite_difference = _fd_new
             time_step = 0
             # Set the initial condition for the direct problem - TODO INTERPOLATE THE INITIAL CONDITION
             if hasattr(self, "initial_temp"):
