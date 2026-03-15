@@ -1078,28 +1078,27 @@ class UI(QWidget):
             header = 'time'
 
             # Add MFC headers
-            for i in range(self.n_region):
-                header += f', mfc_{i}'
-
-            # Add Temperature headers
-            for i in range(self.n_region):
-                header += f', temperature_{i}'
-
-            # Executes if temperature control mode is enabled (be sure to create file and save data after clicking the checkbox)
-            if self.pid_temperature_checkbox.isChecked():
-                # Add Temperature Setpoint headers
+            if self.mpc_temperature_checkbox.isChecked():
+                for i in range(9):
+                    header += f', mfc_{i}'
+                header += ', temperature_0, setpoint, region_0_x_min, region_0_x_max, region_0_y_min, region_0_y_max'
+            else:
                 for i in range(self.n_region):
-                    header += f', temperature_setpoint_{i}'
-                    # Add PID headers for each region
+                    header += f', mfc_{i}'
+                # Add Temperature headers
                 for i in range(self.n_region):
+                    header += f', temperature_{i}'
+                if self.pid_temperature_checkbox.isChecked():
+                    for i in range(self.n_region):
+                        header += f', temperature_setpoint_{i}'
+                    for i in range(self.n_region):
                         header += f', P_{i}'
-                for i in range(self.n_region):
+                    for i in range(self.n_region):
                         header += f', I_{i}'
-                for i in range(self.n_region):
+                    for i in range(self.n_region):
                         header += f', D_{i}'
-
-            for i in range(self.n_region):
-                header += f', region_{i}_x_min, region_{i}_x_max, region_{i}_y_min, region_{i}_y_max'
+                for i in range(self.n_region):
+                    header += f', region_{i}_x_min, region_{i}_x_max, region_{i}_y_min, region_{i}_y_max'
 
             header += '\n'
             

@@ -309,12 +309,20 @@ class MeasureAndControlWorker(QObject):
                     self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
 
             else:
-                self.save_data_array = np.zeros(1 + 6* self.application.n_region)
+                n_mfc = 9
+                self.save_data_array = np.zeros(1 + n_mfc + 1 + 1 + 4)
                 self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))
 
-                for i in range(self.application.n_region):
-                    data_indexing = 1+ 2*self.application.n_region + (i*4)
-                    self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
+                self.save_data_array[0] = self.application.time
+                if not self.application.test_UI:
+                    self.save_data_array[1:1 + n_mfc] = self.application.MFC.flow_rate
+                self.save_data_array[1 + n_mfc] = self.application.temperature.temperature_average[0]
+                self.save_data_array[1 + n_mfc + 1] = self.application.MPC.temperature_setpoint
+                self.save_data_array[1 + n_mfc + 2:1 + n_mfc + 6] = self.application.UI.region_boundaries[0]
+
+                self.save_temperature_array[0] = self.application.time
+                self.save_temperature_array[1:] = self.application.temperature.temperature
+
 
             self.save_data_array[0] = self.application.time
             self.save_temperature_array[0] = self.application.time
