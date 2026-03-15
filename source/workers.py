@@ -323,16 +323,6 @@ class MeasureAndControlWorker(QObject):
                 self.save_temperature_array[0] = self.application.time
                 self.save_temperature_array[1:] = self.application.temperature.temperature
 
-
-            self.save_data_array[0] = self.application.time
-            self.save_temperature_array[0] = self.application.time
-            
-            if not self.application.test_UI:
-                self.save_data_array[1:self.application.n_region + 1] = self.application.MFC.flow_rate
-
-            self.save_data_array[self.application.n_region + 1 : self.application.n_region * 2 + 1] = self.application.temperature.temperature_average
-            self.save_temperature_array[1:] = self.application.temperature.temperature
-
             self.save_data_array = self.save_data_array.reshape(1, -1)
             self.save_temperature_array = self.save_temperature_array.reshape(1, -1)
 
