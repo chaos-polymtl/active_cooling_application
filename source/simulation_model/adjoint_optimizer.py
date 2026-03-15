@@ -5,7 +5,7 @@ from scipy.ndimage import gaussian_filter
 
 import copy
 from scipy.linalg import solve
-from source.experimental_mpc import _copy_boundary_shared_surrogate
+from source.simulation_model.utility import _copy_boundary_shared_surrogate
 from source.simulation_model.finite_difference_3d import FiniteDifferenceSolverSS
 from source.simulation_model.finite_difference_3d import FiniteDifferenceSolver
 from source.simulation_model.finite_difference_3d import AdjointSolver
