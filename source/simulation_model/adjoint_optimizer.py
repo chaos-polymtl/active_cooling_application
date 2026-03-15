@@ -174,7 +174,8 @@ class AdjointTransient:
 
             # We go back in time solving the adjoint problem. For that we restart the time manager (going forward in time does not change the equation we solve)
             time_manager = TimeManager(self.params)
-            self.adjoint = AdjointSolver(self.params, time_manager, self.target_T) #The shape of target_T depends on the number of time steps
+            self.adjoint = AdjointSolver(self.params, time_manager, self.target_T)
+            self.adjoint.boundary = _copy_boundary_shared_surrogate(self.finite_difference.boundary)
             while not time_manager.is_finished() and time_step > 0:
                 idx = max(0, min(time_step - 1, n_time_steps - 1))
                 
