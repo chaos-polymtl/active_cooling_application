@@ -46,6 +46,7 @@ class Solenoid:
         elif new_state == False:
             self.state[byte_index] &= ~(1 << bit_in_byte)
 
+        print(f"[Solenoid] ID = {solenoid_id}, state = {'OPEN' if new_state else 'CLOSED'}")
         self.update_solenoids()
 
     def update_solenoids(self):
