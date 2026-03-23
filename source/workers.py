@@ -88,9 +88,6 @@ class MeasureAndControlWorker(QObject):
 
         self._mpc_thread.start()
 
-        # Define signal to communicate with main thread
-        self.timer.start(500)
-
     def perform_measure_and_control(self):
         self.get_time()
         self.application.temperature.get_temperature()
