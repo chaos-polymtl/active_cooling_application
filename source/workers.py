@@ -61,7 +61,6 @@ class MeasureAndControlWorker(QObject):
         super().__init__()
         self.application = application
         self.timer = None # QTimer will be created in start_timer() to ensure it lives in the correct thread
-        self.timer.timeout.connect(self.perform_measure_and_control)
         self.flow_command_signal.connect(self.set_flow_and_solenoid_states)
 
         self.elapsed_timer = QElapsedTimer()
