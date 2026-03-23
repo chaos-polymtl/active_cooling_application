@@ -60,7 +60,7 @@ class MeasureAndControlWorker(QObject):
     def __init__(self, application):
         super().__init__()
         self.application = application
-        self.timer = QTimer(self)
+        self.timer = None # QTimer will be created in start_timer() to ensure it lives in the correct thread
         self.timer.timeout.connect(self.perform_measure_and_control)
         self.flow_command_signal.connect(self.set_flow_and_solenoid_states)
 
@@ -72,6 +72,9 @@ class MeasureAndControlWorker(QObject):
         # Triggers for time restart
         self.application.UI.scheduler_checkbox.checkStateChanged.connect(self.elapsed_timer.restart)
         self.application.UI.save_checkbox.checkStateChanged.connect(self.elapsed_timer.restart)
+
+        # Connect the worker's signal to the update_plot method
+        self.update_ui_signal.connect(lambda: self.application.UI.update_plot(self.application.time, self.application.temperature, self.application.MFC, self.application.region_modes, self.application.last_flow_command))
 
         # MPC thread setup
         self._mpc_thread = QThread()
@@ -266,12 +269,16 @@ class MeasureAndControlWorker(QObject):
     def start_threads(self):
         # Create and start the thread for measure and control
         self.moveToThread(self.application.measure_and_control_thread)
-
-        # Connect the worker's signal to the update_plot method
-        self.update_ui_signal.connect(lambda: self.application.UI.update_plot(self.application.time, self.application.temperature, self.application.MFC, self.application.region_modes, self.application.last_flow_command))
-
+        self.application.measure_and_control_thread.started.connect(self._start_timer)
         # Start the worker and the thread
         self.application.measure_and_control_thread.start()
+
+    @Slot()
+    def _start_timer(self):
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.perform_measure_and_control)
+        self.flow_command_signal.connect(self.set_flow_and_solenoid_states)
+        self.timer.start(500)
 
     @Slot()
     def stop(self):
@@ -282,7 +289,7 @@ class MeasureAndControlWorker(QObject):
         self._stopped = True
 
         try:
-            if self.timer.isActive():
+            if self.timer and self.timer.isActive():
                 self.timer.stop()
         except Exception as e:
             print(e)
