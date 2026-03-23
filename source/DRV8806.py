@@ -43,3 +43,8 @@ class DRV8806:
         GPIO.output(self.reset, GPIO.HIGH)
         time.sleep(0.1)
         GPIO.output(self.reset, GPIO.LOW)
+
+    def transfer(self, data):
+        GPIO.output(self.latch, GPIO.LOW)
+        self.spi.xfer2(data)
+        GPIO.output(self.latch, GPIO.HIGH)
