@@ -12,10 +12,42 @@ Redistribution and use in source and binary forms, with or without modification,
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
-from PySide6.QtCore import QObject, QTimer, QElapsedTimer, Signal, Slot
+from PySide6.QtCore import QObject, QTimer, QElapsedTimer, Signal, Slot, QThread
 import numpy as np
 
 from source import experimental_mpc
+
+ # Define a worker class for the MPC optimization logic
+class MPCWorker(QObject):
+    """Runs one MPC solve on a dedicated thread; emits result when done."""
+    result_ready = Signal(object)  # emit flow_command np.ndarray when MPC solve is done
+
+    def __init__(self, mpc_controller):
+        super().__init__()
+        self._mpc = mpc_controller
+        self._busy = False
+
+    @property
+    def busy(self):
+        return self._busy
+    
+    @Slot(object, object, object)
+    def solve(self, temp_vec, temperature_shape, flow_rates):
+        self._busy = True
+        try:
+            Q0, cost, _ = self._mpc.compute_mpc_control_action(
+                current_temperatures=temp_vec,
+                temperature_shape=temperature_shape,
+                current_flow_rates=flow_rates
+            )
+            # Convert Q0 [-1, 1] into hardware-ready values
+            flow_command = np.where(Q0 < 0, -1.0, Q0 * 300.0)
+            self.result_ready.emit(flow_command)
+            print(f"[MPC] solve done, applying flow command: {flow_command}, cost: {cost:.2f}")
+        except Exception as e:
+            print(f"[MPC] solve error: {e}")
+        finally:
+            self._busy = False
 
 # Define a worker class for measure and control logic
 class MeasureAndControlWorker(QObject):
@@ -23,6 +55,7 @@ class MeasureAndControlWorker(QObject):
     update_ui_signal = Signal()
     stop_signal = Signal()
     flow_command_signal = Signal(object)
+    mpc_solve_requested = Signal(object, object, object)  # temp_vec, temperature_shape, flow_rates
 
     def __init__(self, application):
         super().__init__()
@@ -39,6 +72,18 @@ class MeasureAndControlWorker(QObject):
         # Triggers for time restart
         self.application.UI.scheduler_checkbox.checkStateChanged.connect(self.elapsed_timer.restart)
         self.application.UI.save_checkbox.checkStateChanged.connect(self.elapsed_timer.restart)
+
+        # MPC thread setup
+        self._mpc_thread = QThread()
+        self._mpc_worker = MPCWorker(self.application.MPC)
+        self._mpc_worker.moveToThread(self._mpc_thread)
+
+        # Wire solve request signal from main thread to MPC worker (cross-thread, queued automatically)
+        self.mpc_solve_requested.connect(self._mpc_worker.solve)
+        # Wire MPC result signal back to main thread handler to apply flow command (queued into this thread)
+        self._mpc_worker.result_ready.connect(self._on_mpc_result)
+
+        self._mpc_thread.start()
 
         # Define signal to communicate with main thread
         self.timer.start(500)
@@ -97,12 +142,15 @@ class MeasureAndControlWorker(QObject):
 
             if t < self.next_mpc_time:
                 return
-            else:
-                self.next_mpc_time += dt
+            
+            self.next_mpc_time += dt
 
-            # #####################################
-            # 2) Extract temperature measurement over the entire plate
-            # #####################################
+            # Skip if MPC worker is still busy from previous solve
+            if self._mpc_worker.busy:
+                print("[MPC] solve still in progress at t={:.2f}s, skipping trigger this cycle".format(t))
+                return
+            
+            # Snapshot current state for MPC inputs
             grid = self.application.temperature.temperature_grid # full camera grid
 
             # region 0 boundaries (from GUI)
@@ -123,36 +171,17 @@ class MeasureAndControlWorker(QObject):
             subgrid = grid[y_min:y_max+1, x_min:x_max+1]
             H_sub, W_sub = subgrid.shape
 
-            # flatten
-            temp_vec = subgrid.flatten(order="C")
+            temp_vec = subgrid.flatten(order="C").copy()
+            flow_snapshot = self.application.MFC.flow_rate.copy()
 
-            # #####################################
-            # 3) Prepare MPC inputs and parameters
-            # #####################################
-            mpc = self.application.MPC
+            print(f"[MPC] Triggering solve at t={t:.2f}s")
+            self.mpc_solve_requested.emit(temp_vec, (H_sub, W_sub), flow_snapshot)
 
-            # Get the temperature setpoint and MPC parameters for the active region
-            temperature_setpoint = mpc.temperature_setpoint
-            # prediction_horizon = mpc.prediction_horizon
-            # control_horizon = mpc.control_horizon
-            # control_weight = mpc.control_weight
-            # dt_mpc = mpc.time_step
-
-            # #####################################
-            # 4) Compute and apply optimal flow rates using MPC
-            # ####################################
-            Q0, mpc_cost, predicted_temp = mpc.compute_mpc_control_action(current_temperatures=temp_vec, temperature_shape=(H_sub, W_sub), current_flow_rates=self.application.MFC.flow_rate.copy())
-            
-            # Convert Q0 [-1, 1] into hardware-ready values
-            flow_command = np.where(Q0 < 0, -1.0, Q0 * 300.0)
-
-            print("Applying MPC flow command:", flow_command)
-
-            # Apply flow command and solenoid states to hardware
-            self.set_flow_and_solenoid_states(flow_command)
-
-            # Update the UI grid with flow command
-            self.flow_command_signal.emit(flow_command)
+    @Slot(object)
+    def _on_mpc_result(self, flow_command):
+        """Apply the MPC result at the moment it is received from the MPC worker thread."""
+        self.set_flow_and_solenoid_states(flow_command)
+        self.flow_command_signal.emit(flow_command)  # also emit to main thread if needed for UI display
 
     def apply_mpc_arrangement(self, arrangement: np.ndarray):
         """
@@ -257,6 +286,9 @@ class MeasureAndControlWorker(QObject):
                 self.timer.stop()
         except Exception as e:
             print(e)
+
+        self._mpc_thread.quit()
+        self._mpc_thread.wait(3000)
             
     def get_time(self):
         self.application.time = self.elapsed_timer.elapsed() / 1000
