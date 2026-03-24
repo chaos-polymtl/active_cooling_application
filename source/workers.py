@@ -41,7 +41,11 @@ class MPCWorker(QObject):
                 current_flow_rates=flow_rates
             )
             # Convert Q0 [-1, 1] into hardware-ready values
-            flow_command = np.where(Q0 < 0, -1.0, Q0 * 300.0)
+            Q0_clean = Q0.copy()
+            # Treat anything within noise threshold of zero as exactly zero
+            Q0_clean[np.abs(Q0_clean) < 1e-6] = 0.0
+            flow_command = np.where(Q0_clean < 0, -1.0, Q0_clean * 300.0)
+            
             self.result_ready.emit(flow_command)
             print(f"[MPC] solve done, applying flow command: {flow_command}, cost: {cost:.2f}")
         except Exception as e:
