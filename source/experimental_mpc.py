@@ -305,6 +305,8 @@ class ExperimentalMPCController:
 
         h_reconstructed = adjoint.run_nonlinear(return_h=True)
 
+        print("Reconstructed h on top face:", h_reconstructed)
+
         # Update previous temperature face for next MPC iteration
         self.previous_plate_temperature = current_T.copy()
 
