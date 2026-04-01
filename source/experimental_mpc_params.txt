@@ -10,8 +10,8 @@ output_path = ../06_simulations-3by3/07_final-choices/2025-12-10-open-loop-pertu
 # -----------------
 
 start_time = 0.0
-final_time = 300
-time_step  = 90
+final_time = 600
+time_step  = 150
 
 # -------------------
 # Material properties

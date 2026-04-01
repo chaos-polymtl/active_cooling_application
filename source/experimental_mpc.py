@@ -42,7 +42,7 @@ class ExperimentalMPCController:
         self.mpc_control_weight = mpc_control_weight  # Weight for control effort in cost function
 
         self.temperature_setpoint = 60.0  # Desired temperature setpoint in Celsius
-        self.time_step = 90.0  # Time step in seconds
+        self.time_step = 200.0  # Time step in seconds
 
         self.system_model = None # system_model will be built before each MPC computation
 
