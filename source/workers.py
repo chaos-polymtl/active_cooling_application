@@ -316,7 +316,8 @@ class MeasureAndControlWorker(QObject):
                     self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
 
             else:
-                self.save_data_array = np.zeros(1 + 6* self.application.n_region)
+                n_sol = len(self.application.solenoid.solenoid_mask)
+                self.save_data_array = np.zeros(1 + 6 * self.application.n_region + n_sol)
                 self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))
 
                 for i in range(self.application.n_region):
@@ -331,6 +332,11 @@ class MeasureAndControlWorker(QObject):
 
             self.save_data_array[self.application.n_region + 1 : self.application.n_region * 2 + 1] = self.application.temperature.temperature_average
             self.save_temperature_array[1:] = self.application.temperature.temperature
+
+            # Append solenoid states at the end of the array
+            solenoid_states = self.application.solenoid.get_solenoid_states()
+            sol_start = len(self.save_data_array.ravel()) - len(solenoid_states)
+            self.save_data_array.ravel()[sol_start:] = [int(s) for s in solenoid_states]
 
             self.save_data_array = self.save_data_array.reshape(1, -1)
             self.save_temperature_array = self.save_temperature_array.reshape(1, -1)

@@ -53,3 +53,16 @@ class Solenoid:
             return
         self.DRV.spi.xfer2(self.state[::-1])
 
+    def get_solenoid_states(self):
+        """Return a list of booleans (True=open) for each solenoid, indexed by logical ID."""
+        states = []
+        for logical_id in sorted(self.solenoid_mask.keys()):
+            hw_id = self.solenoid_mask[logical_id]
+            byte_index = hw_id // 8
+            bit_in_byte = hw_id % 8
+            if byte_index < len(self.state):
+                states.append(bool(self.state[byte_index] & (1 << bit_in_byte)))
+            else:
+                states.append(False)
+        return states
+
