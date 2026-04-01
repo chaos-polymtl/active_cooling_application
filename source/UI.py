@@ -1101,6 +1101,11 @@ class UI(QWidget):
             for i in range(self.n_region):
                 header += f', region_{i}_x_min, region_{i}_x_max, region_{i}_y_min, region_{i}_y_max'
 
+            
+            if not self.pid_temperature_checkbox.isChecked():
+                for i in range(9):
+                    header += f', solenoid_{i}'
+
             header += '\n'
             
             file.write(header)

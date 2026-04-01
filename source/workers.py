@@ -14,6 +14,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 
 from PySide6.QtCore import QObject, QTimer, QElapsedTimer, Signal, Slot, QThread
 import numpy as np
+import os
 
 from source import experimental_mpc
 
@@ -316,7 +317,8 @@ class MeasureAndControlWorker(QObject):
                     self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
 
             else:
-                n_sol = len(self.application.solenoid.solenoid_mask)
+                # n_sol = len(self.application.solenoid.solenoid_mask) # this gives 10 instead of the existing 9 in use solenoid valves
+                n_sol = 9 # solenoid valvues 0 to 8
                 self.save_data_array = np.zeros(1 + 6 * self.application.n_region + n_sol)
                 self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))
 
@@ -334,9 +336,9 @@ class MeasureAndControlWorker(QObject):
             self.save_temperature_array[1:] = self.application.temperature.temperature
 
             # Append solenoid states at the end of the array
-            solenoid_states = self.application.solenoid.get_solenoid_states()
-            sol_start = len(self.save_data_array.ravel()) - len(solenoid_states)
-            self.save_data_array.ravel()[sol_start:] = [int(s) for s in solenoid_states]
+            if not self.application.UI.pid_temperature_checkbox.isChecked():
+                solenoid_states = self.application.solenoid.get_solenoid_states()
+                self.save_data_array[-9:] = [int(s) for s in solenoid_states[:9]]
 
             self.save_data_array = self.save_data_array.reshape(1, -1)
             self.save_temperature_array = self.save_temperature_array.reshape(1, -1)
