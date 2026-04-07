@@ -1114,7 +1114,20 @@ class UI(QWidget):
         with open(self.filename.replace('.csv', '_temp.csv'), 'w') as file:
             header = 'time, temperature\n'
             file.write(header)
-            
+        
+        # Create MPC file if MPC is enabled
+        if self.mpc_temperature_checkbox.isChecked():
+            N = self.mpc_prediction_horizon
+            D = self.n_region
+            mpc_headers = ['time']
+            for n in range(N):
+                for d in range(D):
+                    mpc_headers.append(f'Q_n{n}_d{d}')
+            for n in range(N):
+                mpc_headers.append(f'T_pred_n{n}')
+            mpc_headers.append('h_reconstructed_mean')
+            with open(self.filename.replace('.csv', '_mpc.csv'), 'w') as file:
+                file.write(', '.join(mpc_headers) + '\n')
 
     def set_pid_gains(self, region, parameter):
         '''Set PID controller gains'''

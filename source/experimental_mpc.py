@@ -317,6 +317,8 @@ class ExperimentalMPCController:
         #  apply the reconstructed coefficients directly
         model.boundary.apply_reconstructed_h(5, h_reconstructed)
 
+        self._last_h_reconstructed_mean = float(np.mean(h_reconstructed))
+
         ###############################################################################
 
         # Use the controller's internal model for prediction

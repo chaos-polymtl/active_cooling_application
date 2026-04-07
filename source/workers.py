@@ -36,7 +36,7 @@ class MPCWorker(QObject):
     def solve(self, temp_vec, temperature_shape, flow_rates):
         self._busy = True
         try:
-            Q0, cost, _ = self._mpc.compute_mpc_control_action(
+            Q0, cost, predicted_temps = self._mpc.compute_mpc_control_action(
                 current_temperatures=temp_vec,
                 temperature_shape=temperature_shape,
                 current_flow_rates=flow_rates
@@ -46,8 +46,27 @@ class MPCWorker(QObject):
             # Treat anything within noise threshold of zero as exactly zero
             Q0_clean[np.abs(Q0_clean) < 1e-6] = 0.0
             flow_command = np.where(Q0_clean < 0, -1.0, Q0_clean * 300.0)
-            
-            self.result_ready.emit(flow_command)
+
+            # Build full Q sequence and predicted avg temperatures over horizon
+            N = self._mpc.mpc_prediction_horizon
+            Q_opt_sequence = self._mpc.previous_Q_sequence  # shape (N, D), stored by compute_mpc_control_action
+
+            T_pred_avgs = np.array(
+                [float(np.mean(predicted_temps[k])) for k in sorted(predicted_temps.keys())],
+                dtype=float
+            )  # shape (N,)
+
+            # Reconstructed h (mean over face, scalar) — stored by adjoint in MPC controller
+            h_reconstructed_mean = float(getattr(self._mpc, '_last_h_reconstructed_mean', np.nan))
+
+            self.result_ready.emit({
+                'flow_command': flow_command,
+                'Q_opt_sequence': Q_opt_sequence,
+                'T_pred_avgs': T_pred_avgs,
+                'h_reconstructed_mean': h_reconstructed_mean,
+                'cost': cost,
+            })
+
             print(f"[MPC] solve done, applying flow command: {flow_command}, cost: {cost:.2f}")
         except Exception as e:
             print(f"[MPC] solve error: {e}")
@@ -182,10 +201,13 @@ class MeasureAndControlWorker(QObject):
             self.mpc_solve_requested.emit(temp_vec, (H_sub, W_sub), flow_snapshot)
 
     @Slot(object)
-    def _on_mpc_result(self, flow_command):
+    def _on_mpc_result(self, result:dict):
         """Apply the MPC result at the moment it is received from the MPC worker thread."""
+        flow_command = result['flow_command']
         self.set_flow_and_solenoid_states(flow_command)
         self.flow_command_signal.emit(flow_command)  # also emit to main thread if needed for UI display
+        # Cache MPC extras for save_data to log them
+        self._last_mpc_result = result
 
     def apply_mpc_arrangement(self, arrangement: np.ndarray):
         """
@@ -348,6 +370,34 @@ class MeasureAndControlWorker(QObject):
 
             with open(self.application.UI.filename.replace('.csv', '_temp.csv'), 'a') as file:
                 np.savetxt(file, self.save_temperature_array, delimiter = ',', fmt = '%10.5f')
+
+            # Write MPC file if MPC is enabled
+            if self.application.UI.mpc_temperature_checkbox.isChecked():
+                mpc_result = getattr(self, '_last_mpc_result', None)
+                N = self.application.UI.mpc_prediction_horizon
+                D = self.application.n_region
+
+                if mpc_result is not None:
+                    Q_opt = mpc_result['Q_opt_sequence']   # (N, D)
+                    T_pred = mpc_result['T_pred_avgs']     # (N,)
+                    h_mean = mpc_result['h_reconstructed_mean']  # scalar
+                else:
+                    Q_opt = np.full((N, D), np.nan)
+                    T_pred = np.full(N, np.nan)
+                    h_mean = np.nan
+
+                # Flatten: [time, Q[0,0]..Q[0,D-1], ..., Q[N-1,0]..Q[N-1,D-1], T[0]..T[N-1], h_mean]
+                mpc_row = [self.application.time]
+                for n in range(N):
+                    for d in range(D):
+                        mpc_row.append(float(Q_opt[n, d]) if Q_opt.shape[0] > n else np.nan)
+                for n in range(N):
+                    mpc_row.append(float(T_pred[n]) if len(T_pred) > n else np.nan)
+                mpc_row.append(h_mean)
+
+                mpc_row_str = ','.join(f'{v:.6f}' for v in mpc_row) + '\n'
+                with open(self.application.UI.filename.replace('.csv', '_mpc.csv'), 'a') as file:
+                    file.write(mpc_row_str)
 
     def shutdown(self):
         """
