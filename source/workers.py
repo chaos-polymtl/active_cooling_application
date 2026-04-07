@@ -396,7 +396,18 @@ class MeasureAndControlWorker(QObject):
                 mpc_row.append(h_mean)
 
                 mpc_row_str = ','.join(f'{v:.6f}' for v in mpc_row) + '\n'
-                with open(self.application.UI.filename.replace('.csv', '_mpc.csv'), 'a') as file:
+                mpc_filename = self.application.UI.filename.replace('.csv', '_mpc.csv')
+                if not os.path.exists(mpc_filename):
+                    mpc_headers = ['time']
+                    for n in range(N):
+                        for d in range(D):
+                            mpc_headers.append(f'Q_n{n}_d{d}')
+                    for n in range(N):
+                        mpc_headers.append(f'T_pred_n{n}')
+                    mpc_headers.append('h_reconstructed_mean')
+                    with open(mpc_filename, 'w') as file:
+                        file.write(','.join(mpc_headers) + '\n')
+                with open(mpc_filename, 'a') as file:
                     file.write(mpc_row_str)
 
     def shutdown(self):
