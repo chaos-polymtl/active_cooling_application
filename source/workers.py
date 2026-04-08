@@ -65,6 +65,9 @@ class MPCWorker(QObject):
                 'T_pred_avgs': T_pred_avgs,
                 'h_reconstructed_mean': h_reconstructed_mean,
                 'cost': cost,
+                'h_reconstructed': self._mpc._last_h_reconstructed,
+                'adjoint_error': self._mpc._last_adjoint_error,
+                'adjoint_iterations': self._mpc._last_adjoint_iterations,
             })
 
             print(f"[MPC] solve done, applying flow command: {flow_command}, cost: {cost:.2f}")
@@ -393,7 +396,12 @@ class MeasureAndControlWorker(QObject):
                         mpc_row.append(float(Q_opt[n, d]) if Q_opt.shape[0] > n else np.nan)
                 for n in range(N):
                     mpc_row.append(float(T_pred[n]) if len(T_pred) > n else np.nan)
+
+                adjoint_error = mpc_result['adjoint_error'] if mpc_result else np.nan
+                adjoint_iters = mpc_result['adjoint_iterations'] if mpc_result else np.nan
                 mpc_row.append(h_mean)
+                mpc_row.append(adjoint_error)
+                mpc_row.append(adjoint_iters)
 
                 mpc_row_str = ','.join(f'{v:.6f}' for v in mpc_row) + '\n'
                 mpc_filename = self.application.UI.filename.replace('.csv', '_mpc.csv')
@@ -405,10 +413,23 @@ class MeasureAndControlWorker(QObject):
                     for n in range(N):
                         mpc_headers.append(f'T_pred_n{n}')
                     mpc_headers.append('h_reconstructed_mean')
+                    mpc_headers.append('adjoint_error')
+                    mpc_headers.append('adjoint_iterations')
                     with open(mpc_filename, 'w') as file:
                         file.write(','.join(mpc_headers) + '\n')
                 with open(mpc_filename, 'a') as file:
                     file.write(mpc_row_str)
+
+                # Write full h map (one row per MPC solve)
+                h_full = mpc_result['h_reconstructed'] if mpc_result else np.full(1, np.nan)
+                h_filename = self.application.UI.filename.replace('.csv', '_h.csv')
+                h_row = [self.application.time] + [f'{v:.6f}' for v in h_full.flatten()]
+                if not os.path.exists(h_filename):
+                    h_headers = ['time'] + [f'h_{i}' for i in range(len(h_full.flatten()))]
+                    with open(h_filename, 'w') as file:
+                        file.write(','.join(h_headers) + '\n')
+                with open(h_filename, 'a') as file:
+                    file.write(','.join(str(v) for v in h_row) + '\n')
 
     def shutdown(self):
         """

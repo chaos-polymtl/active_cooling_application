@@ -220,7 +220,7 @@ class AdjointTransient:
         # np.savetxt("reconstructed_h.csv", h_new, delimiter=",")
 
         if return_h:
-            return np.asarray(h_new, dtype=float)
+            return np.asarray(h_new, dtype=float), error, iteration
 
 class AdjointSS:
     def __init__(self, params, finite_difference, data_manager):

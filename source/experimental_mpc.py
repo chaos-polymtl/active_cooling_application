@@ -303,7 +303,7 @@ class ExperimentalMPCController:
         # Choose adjoint solver type
         adjoint = AdjointTransient(model.params, model, data_manager, target_snapshots=[previous_T, current_T])
 
-        h_reconstructed = adjoint.run_nonlinear(return_h=True)
+        h_reconstructed, adjoint_error, adjoint_iterations = adjoint.run_nonlinear(return_h=True)
 
         print("Reconstructed h on top face:", h_reconstructed)
 
@@ -318,6 +318,9 @@ class ExperimentalMPCController:
         model.boundary.apply_reconstructed_h(5, h_reconstructed)
 
         self._last_h_reconstructed_mean = float(np.mean(h_reconstructed))
+        self._last_h_reconstructed = h_reconstructed.copy()
+        self._last_adjoint_error = float(adjoint_error)
+        self._last_adjoint_iterations = int(adjoint_iterations)
 
         ###############################################################################
 
