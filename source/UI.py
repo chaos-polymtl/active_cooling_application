@@ -850,7 +850,7 @@ class UI(QWidget):
             self.mpc_prediction_horizon = 4  # Prediction horizon
             self.mpc_control_horizon = 1  # Control horizon
             self.mpc_control_weight = 0.1  # Control weight
-            self.mpc_setpoint = 60.0  # Desired temperature setpoint
+            self.mpc_setpoint = 55.0  # Desired temperature setpoint
             self.time_step = 300  # Time step for each control action in seconds
 
             # Create horizontal layout for: MPC parameters | TTT grid
