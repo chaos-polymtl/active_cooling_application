@@ -286,7 +286,7 @@ class ExperimentalMPCController:
             new_T_inf = current_plate_temp
 
         # 4.2) reset the top face boundary condition to a default convective coefficient (20) and T_inf
-        model.boundary.reset_boundary(5, new_h=20.0, new_T_inf=new_T_inf)
+        model.boundary.reset_boundary(5, new_h=getattr(self, '_last_reconstructed_h_scalar', 20.0), new_T_inf=new_T_inf)
 
         # 4.3) Get the two snapshots needed for adjoint reconstruction
         if not hasattr(self, 'previous_plate_temperature'):
@@ -303,7 +303,12 @@ class ExperimentalMPCController:
         # Choose adjoint solver type
         adjoint = AdjointTransient(model.params, model, data_manager, target_snapshots=[previous_T, current_T])
 
-        h_reconstructed, adjoint_error, adjoint_iterations = adjoint.run_nonlinear(return_h=True)
+        warm_h = getattr(self, "_last_h_reconstructed", None)
+
+        h_reconstructed, adjoint_error, adjoint_iterations = adjoint.run_nonlinear(return_h=True, initial_h=warm_h)
+
+        # save for warm-start next MPC step
+        self._last_h_reconstructed= h_reconstructed[0] if (h_reconstructed.ndim == 2 and h_reconstructed.shape[0] == 1) else h_reconstructed.copy()
 
         print("Reconstructed h on top face:", h_reconstructed)
 
@@ -318,7 +323,6 @@ class ExperimentalMPCController:
         model.boundary.apply_reconstructed_h(5, h_reconstructed)
 
         self._last_h_reconstructed_mean = float(np.mean(h_reconstructed))
-        self._last_h_reconstructed = h_reconstructed.copy()
         self._last_adjoint_error = float(adjoint_error)
         self._last_adjoint_iterations = int(adjoint_iterations)
 

@@ -57,7 +57,7 @@ class AdjointTransient:
 
         self.face_to_optimize = self.params.adjoint_optimize_face
 
-    def run_nonlinear(self, return_h=False):
+    def run_nonlinear(self, return_h=False, initial_h=None):
         """
         Run the nonlinear adjoint optimization loop
         
@@ -105,8 +105,13 @@ class AdjointTransient:
         temp_error_to_output = np.zeros(n_points*self.params.nz)
 
         # Set all the convective coefficients 
+        # if initial_h is not None, we start the optimization from the initial h provided as input (Warm-start). 
+        # This is useful for MPC when we want to start the optimization from the previous time step solution. 
         for i in range(n_time_steps):
-            h_new[i] = self.finite_difference.boundary.get_convective_coefficient_at_face(face_to_optimize)
+            if initial_h is not None:
+                h_new[i] = np.asarray(initial_h, dtype=float)
+            else:
+                h_new[i] = self.finite_difference.boundary.get_convective_coefficient_at_face(face_to_optimize)
 
         while error > tolerance and iteration < max_iteration:
 
