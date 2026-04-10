@@ -275,56 +275,57 @@ class ExperimentalMPCController:
         print("Boundary inlets:", model.boundary.inlet_configuration)
 
         # 4) Adjoint reconstruction of top boundary h(x,y) ###########################################
+        if not getattr(self, 'skip_heat_load_reconstruction', False):
 
-        # 4.1) Check if there is a heat load perturbation (if the plate temperature is above target), if so, set T_inf high for reconstruction
-        target_temp = self.temperature_setpoint
+            # 4.1) Check if there is a heat load perturbation (if the plate temperature is above target), if so, set T_inf high for reconstruction
+            target_temp = self.temperature_setpoint
 
-        current_plate_temp = float(np.mean(model.get_temperature_face(5))) # Top face id=5
-        if current_plate_temp > target_temp:
-            new_T_inf = 250.0
-        else:
-            new_T_inf = current_plate_temp
+            current_plate_temp = float(np.mean(model.get_temperature_face(5))) # Top face id=5
+            if current_plate_temp > target_temp:
+                new_T_inf = 250.0
+            else:
+                new_T_inf = current_plate_temp
 
-        # 4.2) reset the top face boundary condition to a default convective coefficient (20) and T_inf
-        model.boundary.reset_boundary(5, new_h=getattr(self, '_last_reconstructed_h_scalar', 20.0), new_T_inf=new_T_inf)
+            # 4.2) reset the top face boundary condition to a default convective coefficient (20) and T_inf
+            model.boundary.reset_boundary(5, new_h=getattr(self, '_last_reconstructed_h_scalar', 20.0), new_T_inf=new_T_inf)
 
-        # 4.3) Get the two snapshots needed for adjoint reconstruction
-        if not hasattr(self, 'previous_plate_temperature'):
-            # First MPC iteration, no snapshot available yet
-            self.previous_plate_temperature = model.get_temperature_face(face_id=5)
+            # 4.3) Get the two snapshots needed for adjoint reconstruction
+            if not hasattr(self, 'previous_plate_temperature'):
+                # First MPC iteration, no snapshot available yet
+                self.previous_plate_temperature = model.get_temperature_face(face_id=5)
 
-        previous_T = self.previous_plate_temperature
-        current_T = model.get_temperature_face(face_id=5)
+            previous_T = self.previous_plate_temperature
+            current_T = model.get_temperature_face(face_id=5)
 
-        # 4.3) run adjoint reconstruction and apply reconstructed h
+            # 4.3) run adjoint reconstruction and apply reconstructed h
 
-        data_manager = DataManager(model.params, model.points)
+            data_manager = DataManager(model.params, model.points)
 
-        # Choose adjoint solver type
-        adjoint = AdjointTransient(model.params, model, data_manager, target_snapshots=[previous_T, current_T])
+            # Choose adjoint solver type
+            adjoint = AdjointTransient(model.params, model, data_manager, target_snapshots=[previous_T, current_T])
 
-        warm_h = getattr(self, "_last_h_reconstructed", None)
+            warm_h = getattr(self, "_last_h_reconstructed", None)
 
-        h_reconstructed, adjoint_error, adjoint_iterations = adjoint.run_nonlinear(return_h=True, initial_h=warm_h)
+            h_reconstructed, adjoint_error, adjoint_iterations = adjoint.run_nonlinear(return_h=True, initial_h=warm_h)
 
-        # save for warm-start next MPC step
-        self._last_h_reconstructed= h_reconstructed[0] if (h_reconstructed.ndim == 2 and h_reconstructed.shape[0] == 1) else h_reconstructed.copy()
+            # save for warm-start next MPC step
+            self._last_h_reconstructed= h_reconstructed[0] if (h_reconstructed.ndim == 2 and h_reconstructed.shape[0] == 1) else h_reconstructed.copy()
 
-        print("Reconstructed h on top face:", h_reconstructed)
+            print("Reconstructed h on top face:", h_reconstructed)
 
-        # Update previous temperature face for next MPC iteration
-        self.previous_plate_temperature = current_T.copy()
+            # Update previous temperature face for next MPC iteration
+            self.previous_plate_temperature = current_T.copy()
 
-        # Ensure the shape of h_reconstructed matches the number of boundary points on the face
-        if h_reconstructed.ndim == 2 and h_reconstructed.shape[0] == 1:
-            h_reconstructed = h_reconstructed[0]
+            # Ensure the shape of h_reconstructed matches the number of boundary points on the face
+            if h_reconstructed.ndim == 2 and h_reconstructed.shape[0] == 1:
+                h_reconstructed = h_reconstructed[0]
 
-        #  apply the reconstructed coefficients directly
-        model.boundary.apply_reconstructed_h(5, h_reconstructed)
+            #  apply the reconstructed coefficients directly
+            model.boundary.apply_reconstructed_h(5, h_reconstructed)
 
-        self._last_h_reconstructed_mean = float(np.mean(h_reconstructed))
-        self._last_adjoint_error = float(adjoint_error)
-        self._last_adjoint_iterations = int(adjoint_iterations)
+            self._last_h_reconstructed_mean = float(np.mean(h_reconstructed))
+            self._last_adjoint_error = float(adjoint_error)
+            self._last_adjoint_iterations = int(adjoint_iterations)
 
         ###############################################################################
 
