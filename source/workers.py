@@ -36,8 +36,8 @@ class MPCWorker(QObject):
     def solve(self, temp_vec, temperature_shape, flow_rates):
         self._busy = True
         try:
-            self.skip_heat_load_reconstruction = True
-            
+            self._mpc.skip_heat_load_reconstruction = True
+
             Q0, cost, predicted_temps = self._mpc.compute_mpc_control_action(
                 current_temperatures=temp_vec,
                 temperature_shape=temperature_shape,
