@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.sparse.linalg import bicgstab, gmres, spilu, LinearOperator, spsolve
-from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse.linalg import spsolve
+from scipy.sparse import lil_matrix, csr_matrix, csc_matrix
 from source.simulation_model.boundary import Boundary
 
 from source.simulation_model.utility import *
@@ -107,16 +107,14 @@ class FiniteDifferenceSolver:
         if self.params.source:
             self.evaluate_source_term()
 
-    def solve_linear_system(self, A, rhs, function=gmres):
+    def solve_linear_system(self, A, rhs):
         """
-        Solve the linear system A*x = rhs.
+        Solve the linear system A*x = rhs using a direct sparse solver.
+        spsolve (SuperLU) is faster than GMRES+ILU for the small grids used here
+        because it avoids repeated ILU factorisation and GMRES iteration overhead.
         """
-        ilu_preconditioner = spilu(A)
-        M = LinearOperator(A.shape, ilu_preconditioner.solve)
-        solution, _ = function(A, rhs, x0=self.T, M=M, tol=1e-9)
+        return spsolve(A, rhs)
 
-        return solution
-    
     def evaluate_source_term(self):
         """
         Evaluate source term.
@@ -454,15 +452,11 @@ class AdjointSolver:
         """
         self.rhs = self.lambda_t.copy()
 
-    def solve_linear_system(self, A, rhs, function=gmres):
+    def solve_linear_system(self, A, rhs):
         """
-        Solve the linear system A*x = rhs.
+        Solve the linear system A*x = rhs using a direct sparse solver.
         """
-        ilu_preconditioner = spilu(A)
-        M = LinearOperator(A.shape, ilu_preconditioner.solve)
-        solution, _ = function(A, rhs, x0=self.lambda_t, M=M, tol=1e-9)
-
-        return solution
+        return spsolve(A, rhs)
 
     def assemble_adjoint_source_term(self, direct_solution, target_temperature):
         """

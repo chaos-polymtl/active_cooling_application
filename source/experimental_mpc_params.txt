@@ -64,3 +64,10 @@ surrogate_path = ./source/simulation_model/3x3_surrogate.pth
 initial_inlet_configuration = 0, -1, 0,   -1, 0, -1,   0, -1, 0
 jet_diameter = 0.0127
 fluid_conductivity = 0.026
+
+# -------------------
+# Adjoint reconstruction settings
+# -------------------
+# Face 5 = top (z=Lz, robin BC) - where the camera measures and where h is reconstructed
+adjoint_target_face = 5
+adjoint_optimize_face = 5

@@ -59,170 +59,183 @@ class AdjointTransient:
 
     def run_nonlinear(self, return_h=False, initial_h=None):
         """
-        Run the nonlinear adjoint optimization loop
-        
-        :param return_h: Boolean indicating whether to return the optimized convective coefficient array instead of saving to file
+        Run the nonlinear adjoint optimization loop.
+
+        :param return_h: Return the optimized h array instead of saving to file.
+        :param initial_h: Warm-start h (from previous MPC step). If None, reads from boundary.
         """
 
-        # Handle missing DataManager (for MPC integration, no VTU output needed)
+        # Handle missing DataManager (MPC integration: no VTU output needed)
         if self.data_manager is None:
             def _noop_save_vtu(*args, **kwargs):
                 pass
             self.data_manager = type("DummyDM", (), {"save_vtu": staticmethod(_noop_save_vtu)})()
 
-        # Check if we are in 2-snapshot transient mode (MPC)
+        # Determine number of time steps
         if hasattr(self, 'target_T') and len(self.target_T) == 1 and hasattr(self, 'initial_temp'):
             n_time_steps = 1
         else:
-            n_time_steps = int((self.params.final_time - self.params.start_time)/self.params.time_step)
+            n_time_steps = int((self.params.final_time - self.params.start_time) / self.params.time_step)
 
-        # Setup adjoint loop
         error = 1e6
         tolerance = self.params.adjoint_tolerance
-        
         iteration = 0
         max_iteration = self.params.adjoint_max_iterations
 
         target_face = self.params.adjoint_target_face
         face_to_optimize = self.params.adjoint_optimize_face
 
-        n_points = self.params.nx * self.params.ny
+        nx, ny, nz = self.params.nx, self.params.ny, self.params.nz
+        n_points = nx * ny
+        n_total = nx * ny * nz
+
         direct_temperature_solutions = np.zeros((n_time_steps, n_points))
         adjoint_temperature_solutions = np.zeros((n_time_steps, n_points))
-        gradient = np.zeros((n_time_steps, n_points))
-        previous_gradient = np.zeros((n_time_steps, n_points))
         h_new = np.zeros((n_time_steps, n_points))
 
-        moment = 0
-        moment_2 = 0
+        # Adam optimizer state (replaces fixed-step gradient descent)
+        moment   = np.zeros((n_time_steps, n_points))
+        moment_2 = np.zeros((n_time_steps, n_points))
+        beta_1   = 0.9
+        beta_2   = 0.999
+        adam_lr  = 0.1  # learning rate (was 0.0001 with plain gradient descent)
 
-        beta_1 = 0.9
-        beta_2 = 0.999
+        h_coeff_to_output   = np.zeros(n_points * nz)
+        temp_error_to_output = np.zeros(n_points * nz)
 
-        # Even if the h coefficient is only on boundaries, we give the value of zero to all the other points just for the output. 
-        # The last convective coefficient is always 0 because the h at the current time step is used to calculate the temperature for the next time step.
-        h_coeff_to_output = np.zeros(n_points*self.params.nz)
-        temp_error_to_output = np.zeros(n_points*self.params.nz)
-
-        # Set all the convective coefficients 
-        # if initial_h is not None, we start the optimization from the initial h provided as input (Warm-start). 
-        # This is useful for MPC when we want to start the optimization from the previous time step solution. 
+        # Initialise h values (warm-start or default from boundary)
         for i in range(n_time_steps):
             if initial_h is not None:
                 h_new[i] = np.asarray(initial_h, dtype=float)
             else:
                 h_new[i] = self.finite_difference.boundary.get_convective_coefficient_at_face(face_to_optimize)
 
+        # ------------------------------------------------------------------
+        # Create the adjoint solver ONCE outside the loop to avoid reloading
+        # the NN surrogate model on every iteration (was a major bottleneck).
+        # ------------------------------------------------------------------
+        time_manager_adj = TimeManager(self.params)
+        self.adjoint = AdjointSolver(self.params, time_manager_adj, self.target_T)
+
+        # Read the actual T_inf from the direct solver's boundary.
+        # The MPC calls reset_boundary() before running the adjoint, so T_inf
+        # may differ from the params file value (e.g. 250 °C for heat-load mode).
+        try:
+            _default_T_inf = float(eval(str(self.params.T_inf[target_face])))
+        except Exception:
+            _default_T_inf = 25.0
+        T_inf_recon = np.array([
+            self.finite_difference.boundary.T_inf.get(int(idx), _default_T_inf)
+            for idx in self.finite_difference.boundary.dict_boundary_points[target_face]
+        ])
+
+        # Build a proper 3D initial condition from the measured 2D face temperature.
+        # Tiling extends the face values uniformly through the z-direction (thin-plate
+        # assumption). This is much better than using a single scalar average.
+        if hasattr(self, "initial_temp"):
+            # initial_temp has shape (nx*ny,) matching face ordering (x fast, y slow)
+            T_init_3d = np.tile(np.asarray(self.initial_temp, dtype=float), nz)
+        else:
+            T_init_3d = np.full(n_total, float(np.average(self.params.adjoint_target_array[0])))
+
+        # ------------------------------------------------------------------
+        # Main adjoint iteration loop
+        # ------------------------------------------------------------------
         while error > tolerance and iteration < max_iteration:
 
-            # Restart the time manager at every iteration
-            time_manager = TimeManager(self.params)
-            self.finite_difference = FiniteDifferenceSolver(self.params, time_manager)
+            # ---- Reset the direct FD solver (reuse existing object) ----
+            # Only reset mutable state: T field and time manager.
+            # The boundary (including NN surrogate) is already configured.
+            self.finite_difference.time_manager.current_time = self.params.start_time
+            self.finite_difference.time_manager.current_step = 0
             time_step = 0
-            # Set the initial condition for the direct problem - TODO INTERPOLATE THE INITIAL CONDITION
-            if hasattr(self, "initial_temp"):
-                # 2-snapshot mode
-                init_scalar = float(np.average(self.initial_temp))
-            else:
-                # full transient mode
-                init_scalar = float(np.average(self.params.adjoint_target_array[0]))
+            self.finite_difference.T = T_init_3d.copy()
 
-            self.finite_difference.T = np.full(self.params.nx * self.params.ny * self.params.nz, init_scalar, dtype=float)
+            # ---- FORWARD PASS ----
+            while not self.finite_difference.time_manager.is_finished() and time_step < n_time_steps:
+                idx = max(0, min(time_step, n_time_steps - 1))
 
-            while not time_manager.is_finished() and time_step < n_time_steps:
-                idx = max(0, min(time_step, n_time_steps - 1))  
-
-                # Set the h coefficient to the one at the current time step
                 self.finite_difference.boundary.set_convective_heat_transfer_map_for_face(face_to_optimize, h_new[idx])
-                
-                # Prepare to output the h coefficient
+
                 id_h_coefficient_imposed = self.finite_difference.boundary.convective_coefficient.keys()
                 for id in id_h_coefficient_imposed:
                     h_coeff_to_output[id] = self.finite_difference.boundary.convective_coefficient[id]
 
-                # Compute the difference between the temperature at the current time step and the target temperature
                 if time_step != 0:
-                    temp_error_on_face = self.finite_difference.get_temperature_face(target_face) - self.target_T[time_step-1]
+                    temp_error_on_face = self.finite_difference.get_temperature_face(target_face) - self.target_T[time_step - 1]
                 else:
-                    temp_error_on_face = self.finite_difference.get_temperature_face(target_face)*0.
+                    temp_error_on_face = self.finite_difference.get_temperature_face(target_face) * 0.0
 
                 for i, index in enumerate(self.finite_difference.boundary.dict_boundary_points[target_face]):
                     temp_error_to_output[index] = temp_error_on_face[i]
 
-                # We save the solution at every time step. The first one is the initial condition
-                self.data_manager.save_vtu(time_manager.current_step, self.finite_difference.T, self.finite_difference.heat_flux, h_coeff_to_output, temp_error_to_output)
+                self.data_manager.save_vtu(self.finite_difference.time_manager.current_step, self.finite_difference.T,
+                                           self.finite_difference.heat_flux, h_coeff_to_output, temp_error_to_output)
 
-                # Solve the unsteady direct problem for the current time step
                 self.finite_difference.solve()
+                direct_temperature_solutions[time_step] = self.finite_difference.get_temperature_face(target_face)
 
-                # Store the temperature on the top face in the solution vector. IMPORTANT - even if the temperature solution is calculated for the time t+time_step, we store the direct temperature solution on the face at time t. This is done for the adjoint problem
-                direct_temperature_solutions[time_step] = self.finite_difference.get_temperature_face(target_face) 
-
-                time_manager.update_time()
+                self.finite_difference.time_manager.update_time()
                 time_step += 1
 
-            # need to compute the error if only two time steps
+            # Final forward-pass error snapshot
             if time_step != 0:
-                temp_error_on_face = self.finite_difference.get_temperature_face(target_face) - self.target_T[time_step-1]
+                temp_error_on_face = self.finite_difference.get_temperature_face(target_face) - self.target_T[time_step - 1]
             else:
-                temp_error_on_face = self.finite_difference.get_temperature_face(target_face)*0.
+                temp_error_on_face = self.finite_difference.get_temperature_face(target_face) * 0.0
 
             for i, index in enumerate(self.finite_difference.boundary.dict_boundary_points[target_face]):
                 temp_error_to_output[index] = temp_error_on_face[i]
+            self.data_manager.save_vtu(self.finite_difference.time_manager.current_step, self.finite_difference.T,
+                                       self.finite_difference.heat_flux, h_coeff_to_output, temp_error_to_output)
 
-            # save the final solution once we exit the loop. The last h_coeff_to_output is the same as one step before the end of the simulation.
-            self.data_manager.save_vtu(time_manager.current_step, self.finite_difference.T, self.finite_difference.heat_flux, h_coeff_to_output, temp_error_to_output)
+            # ---- BACKWARD (ADJOINT) PASS ----
+            # Reset adjoint solver state without recreating it (avoids NN reload).
+            time_manager_adj.current_time = self.params.start_time
+            time_manager_adj.current_step = 0
+            self.adjoint.lambda_t = np.zeros(n_total)
 
-            # We go back in time solving the adjoint problem. For that we restart the time manager (going forward in time does not change the equation we solve)
-            time_manager = TimeManager(self.params)
-            self.adjoint = AdjointSolver(self.params, time_manager, self.target_T) #The shape of target_T depends on the number of time steps
-            while not time_manager.is_finished() and time_step > 0:
+            while not time_manager_adj.is_finished() and time_step > 0:
                 idx = max(0, min(time_step - 1, n_time_steps - 1))
-                
-                # Set the h coefficient to the one at the next time step (which is the previous one in the adjoint problem)
+
                 self.adjoint.boundary.set_convective_heat_transfer_map_for_face(face_to_optimize, h_new[idx])
 
-                # Prepare the heat transfer coefficient for output
                 id_h_coefficient_imposed = self.adjoint.boundary.convective_coefficient.keys()
                 for id in id_h_coefficient_imposed:
                     h_coeff_to_output[id] = self.adjoint.boundary.convective_coefficient[id]
 
-                self.data_manager.save_vtu(time_step, self.adjoint.lambda_t, self.finite_difference.heat_flux, h_coeff_to_output, file_name_prefix="adjoint_output")
+                self.data_manager.save_vtu(time_step, self.adjoint.lambda_t, self.finite_difference.heat_flux,
+                                           h_coeff_to_output, file_name_prefix="adjoint_output")
 
-                # Solve the adjoint problem using the direct problem solution
-                self.adjoint.solve(direct_temperature_solutions[time_step-1], self.target_T[time_step-1])
-                
-                # Store the adjoint temperature on the top face in the solution vector
+                self.adjoint.solve(direct_temperature_solutions[time_step - 1], self.target_T[time_step - 1])
                 adjoint_temperature_solutions[time_step - 1] = self.adjoint.get_lambda_at_face(target_face)
 
-                # Update the time
-                time_manager.update_time()
+                time_manager_adj.update_time()
                 time_step -= 1
-                
 
-            # We save the final solution, which is at the end
-            self.data_manager.save_vtu(time_step, self.adjoint.lambda_t, self.finite_difference.heat_flux, h_coeff_to_output, file_name_prefix="adjoint_output")
+            self.data_manager.save_vtu(time_step, self.adjoint.lambda_t, self.finite_difference.heat_flux,
+                                       h_coeff_to_output, file_name_prefix="adjoint_output")
 
-            # Calculate the gradient of the cost function to minimize using the solution of the adjoint and the direct problem
-            gradient = -1/(self.params.thermal_conductivity) * adjoint_temperature_solutions * (direct_temperature_solutions - eval(self.params.T_inf[target_face]))
+            # ---- GRADIENT ----
+            # Use the actual T_inf from the direct solver boundary (not the stale params value).
+            gradient = (-1.0 / self.params.thermal_conductivity
+                        * adjoint_temperature_solutions
+                        * (direct_temperature_solutions - T_inf_recon[np.newaxis, :]))
 
-            h_previous = h_new.copy()
-
-            # Gradient descent for now -> method to be improved with maths in master thesis
-            h_new = h_previous - 0.0001*gradient
-
-            # Apply constraint
+            # ---- ADAM UPDATE (replaces fixed-step gradient descent) ----
+            iteration_1based = iteration + 1
+            moment   = beta_1 * moment   + (1.0 - beta_1) * gradient
+            moment_2 = beta_2 * moment_2 + (1.0 - beta_2) * np.square(gradient)
+            m_hat = moment   / (1.0 - beta_1 ** iteration_1based)
+            v_hat = moment_2 / (1.0 - beta_2 ** iteration_1based)
+            h_new = h_new - adam_lr * m_hat / (np.sqrt(v_hat) + 1e-8)
             h_new = np.maximum(h_new, 0.0)
-                        
-            # Calculate the error as RMSE
-            error = np.linalg.norm(direct_temperature_solutions - self.target_T, 2)/np.sqrt(len(self.target_T)*len(self.target_T[0]))
-            
-            # print("error: ", round(error, 8))
+
+            # ---- CONVERGENCE CHECK ----
+            error = (np.linalg.norm(direct_temperature_solutions - self.target_T, 2)
+                     / np.sqrt(len(self.target_T) * len(self.target_T[0])))
 
             iteration += 1
-
-        # write the h_new vector to a file
-        # np.savetxt("reconstructed_h.csv", h_new, delimiter=",")
 
         if return_h:
             return np.asarray(h_new, dtype=float), error, iteration

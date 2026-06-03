@@ -53,23 +53,30 @@ class MPCWorker(QObject):
             N = self._mpc.mpc_prediction_horizon
             Q_opt_sequence = self._mpc.previous_Q_sequence  # shape (N, D), stored by compute_mpc_control_action
 
+            sorted_steps = sorted(predicted_temps.keys())
             T_pred_avgs = np.array(
-                [float(np.mean(predicted_temps[k])) for k in sorted(predicted_temps.keys())],
+                [float(np.mean(predicted_temps[k])) for k in sorted_steps],
                 dtype=float
-            )  # shape (N,)
+            )  # shape (N,) — spatial mean of top-face temperature at each prediction step
+
+            T_pred_fields = np.array(
+                [predicted_temps[k] for k in sorted_steps],
+                dtype=float
+            )  # shape (N, M) — full top-face temperature field at each prediction step
 
             # Reconstructed h (mean over face, scalar) — stored by adjoint in MPC controller
             h_reconstructed_mean = float(getattr(self._mpc, '_last_h_reconstructed_mean', np.nan))
 
             self.result_ready.emit({
-                'flow_command': flow_command,
-                'Q_opt_sequence': Q_opt_sequence,
-                'T_pred_avgs': T_pred_avgs,
+                'flow_command':        flow_command,
+                'Q_opt_sequence':      Q_opt_sequence,
+                'T_pred_avgs':         T_pred_avgs,
+                'T_pred_fields':       T_pred_fields,
                 'h_reconstructed_mean': h_reconstructed_mean,
-                'cost': cost,
-                'h_reconstructed': self._mpc._last_h_reconstructed,
-                'adjoint_error': self._mpc._last_adjoint_error,
-                'adjoint_iterations': self._mpc._last_adjoint_iterations,
+                'cost':                cost,
+                'h_reconstructed':     self._mpc._last_h_reconstructed,
+                'adjoint_error':       getattr(self._mpc, '_last_adjoint_error', np.nan),
+                'adjoint_iterations':  getattr(self._mpc, '_last_adjoint_iterations', np.nan),
             })
 
             print(f"[MPC] solve done, applying flow command: {flow_command}, cost: {cost:.2f}")
@@ -213,6 +220,7 @@ class MeasureAndControlWorker(QObject):
         self.flow_command_signal.emit(flow_command)  # also emit to main thread if needed for UI display
         # Cache MPC extras for save_data to log them
         self._last_mpc_result = result
+        self._new_mpc_result_available = True  # flag so Tfield file is written exactly once per solve
 
     def apply_mpc_arrangement(self, arrangement: np.ndarray):
         """
@@ -330,108 +338,167 @@ class MeasureAndControlWorker(QObject):
         self.application.time_step = self.elapsed_timer.elapsed() / 1000 - self.application.previous_time
         self.application.previous_time = self.application.time
 
+    # ------------------------------------------------------------------
+    # Output helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _write_row(filename, headers, values, fmt='.6f'):
+        """Write *headers* once (when file is new) then append *values* as a CSV row."""
+        if not os.path.exists(filename):
+            with open(filename, 'w') as f:
+                f.write(','.join(headers) + '\n')
+        row = ','.join(format(v, fmt) for v in values) + '\n'
+        with open(filename, 'a') as f:
+            f.write(row)
+
+    def _sensor_headers(self):
+        """Column names for the main sensor CSV, matching the array layout in save_data."""
+        nr = self.application.n_region
+        headers = ['time']
+        headers += [f'mfc_{i}' for i in range(nr)]
+        headers += [f'T_avg_region{i}' for i in range(nr)]
+        if self.application.UI.pid_temperature_checkbox.isChecked():
+            headers += [f'T_set_region{i}' for i in range(nr)]
+            for label in ['P', 'I', 'D']:
+                headers += [f'{label}_region{i}' for i in range(nr)]
+        for i in range(nr):
+            headers += [f'roi{i}_x_min', f'roi{i}_x_max', f'roi{i}_y_min', f'roi{i}_y_max']
+        if not self.application.UI.pid_temperature_checkbox.isChecked():
+            headers += [f'sol_{i}' for i in range(9)]
+        return headers
+
     def save_data(self):
-        if self.application.UI.save_mode:
-            if self.application.UI.pid_temperature_checkbox.isChecked():
-                self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))              
-                self.save_data_array = np.zeros(1 + 10 * self.application.n_region)
-                self.save_data_array[2*self.application.n_region + 1 : 3*self.application.n_region + 1] = self.application.UI.temperature_setpoint
-                for i in range(self.application.n_region):
-                    for j in range(3):
-                        self.save_data_array[(3+j)*self.application.n_region + 1 + i] = self.application.UI.PID[i].gains[j]
+        if not self.application.UI.save_mode:
+            return
 
-                    data_indexing = 1+ 6*self.application.n_region + (i*4)
-                    self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
+        nr  = self.application.n_region
+        pid = self.application.UI.pid_temperature_checkbox.isChecked()
 
-            else:
-                # n_sol = len(self.application.solenoid.solenoid_mask) # this gives 10 instead of the existing 9 in use solenoid valves
-                n_sol = 9 # solenoid valvues 0 to 8
-                self.save_data_array = np.zeros(1 + 6 * self.application.n_region + n_sol)
-                self.save_temperature_array = np.zeros(1 + len(self.application.temperature.temperature))
+        # ---- build sensor data array (same logic as before) ----
+        if pid:
+            self.save_data_array = np.zeros(1 + 10 * nr)
+            self.save_data_array[2*nr + 1 : 3*nr + 1] = self.application.UI.temperature_setpoint
+            for i in range(nr):
+                for j in range(3):
+                    self.save_data_array[(3 + j)*nr + 1 + i] = self.application.UI.PID[i].gains[j]
+                data_indexing = 1 + 6*nr + i*4
+                self.save_data_array[data_indexing : data_indexing + 4] = self.application.UI.region_boundaries[i]
+        else:
+            n_sol = 9
+            self.save_data_array = np.zeros(1 + 6*nr + n_sol)
+            for i in range(nr):
+                data_indexing = 1 + 2*nr + i*4
+                self.save_data_array[data_indexing : data_indexing + 4] = self.application.UI.region_boundaries[i]
 
-                for i in range(self.application.n_region):
-                    data_indexing = 1+ 2*self.application.n_region + (i*4)
-                    self.save_data_array[data_indexing : data_indexing +4] = self.application.UI.region_boundaries[i]
+        self.save_data_array[0] = self.application.time
+        if not self.application.test_UI:
+            self.save_data_array[1 : nr + 1] = self.application.MFC.flow_rate
+        self.save_data_array[nr + 1 : nr*2 + 1] = self.application.temperature.temperature_average
 
-            self.save_data_array[0] = self.application.time
-            self.save_temperature_array[0] = self.application.time
-            
-            if not self.application.test_UI:
-                self.save_data_array[1:self.application.n_region + 1] = self.application.MFC.flow_rate
+        if not pid:
+            solenoid_states = self.application.solenoid.get_solenoid_states()
+            self.save_data_array[-9:] = [int(s) for s in solenoid_states[:9]]
 
-            self.save_data_array[self.application.n_region + 1 : self.application.n_region * 2 + 1] = self.application.temperature.temperature_average
-            self.save_temperature_array[1:] = self.application.temperature.temperature
+        # ---- build camera temperature array ----
+        n_cam = len(self.application.temperature.temperature)
+        self.save_temperature_array = np.zeros(1 + n_cam)
+        self.save_temperature_array[0]  = self.application.time
+        self.save_temperature_array[1:] = self.application.temperature.temperature
 
-            # Append solenoid states at the end of the array
-            if not self.application.UI.pid_temperature_checkbox.isChecked():
-                solenoid_states = self.application.solenoid.get_solenoid_states()
-                self.save_data_array[-9:] = [int(s) for s in solenoid_states[:9]]
+        # ----------------------------------------------------------------
+        # 1) sensors.csv  — one row per control loop tick (500 ms)
+        # ----------------------------------------------------------------
+        sensor_file = self.application.UI.filename
+        sensor_headers = self._sensor_headers()
+        if not os.path.exists(sensor_file):
+            with open(sensor_file, 'w') as f:
+                f.write(','.join(sensor_headers) + '\n')
+        with open(sensor_file, 'a') as f:
+            np.savetxt(f, self.save_data_array.reshape(1, -1), delimiter=',', fmt='%10.5f')
 
-            self.save_data_array = self.save_data_array.reshape(1, -1)
-            self.save_temperature_array = self.save_temperature_array.reshape(1, -1)
+        # ----------------------------------------------------------------
+        # 2) sensors_Tcam.csv  — full camera grid, one row per tick
+        # ----------------------------------------------------------------
+        tcam_file = sensor_file.replace('.csv', '_Tcam.csv')
+        if not os.path.exists(tcam_file):
+            tcam_headers = ['time'] + [f'T_cam_{i}' for i in range(n_cam)]
+            with open(tcam_file, 'w') as f:
+                f.write(','.join(tcam_headers) + '\n')
+        with open(tcam_file, 'a') as f:
+            np.savetxt(f, self.save_temperature_array.reshape(1, -1), delimiter=',', fmt='%10.5f')
 
-            with open(self.application.UI.filename, 'a') as file:
-                np.savetxt(file, self.save_data_array, delimiter=',', fmt='%10.5f')
+        # ----------------------------------------------------------------
+        # MPC-specific files (only when MPC checkbox is active)
+        # ----------------------------------------------------------------
+        if not self.application.UI.mpc_temperature_checkbox.isChecked():
+            return
 
-            with open(self.application.UI.filename.replace('.csv', '_temp.csv'), 'a') as file:
-                np.savetxt(file, self.save_temperature_array, delimiter = ',', fmt = '%10.5f')
+        mpc_result = getattr(self, '_last_mpc_result', None)
+        N = self.application.UI.mpc_prediction_horizon
+        D = self.application.n_region
 
-            # Write MPC file if MPC is enabled
-            if self.application.UI.mpc_temperature_checkbox.isChecked():
-                mpc_result = getattr(self, '_last_mpc_result', None)
-                N = self.application.UI.mpc_prediction_horizon
-                D = self.application.n_region
+        if mpc_result is not None:
+            Q_opt   = mpc_result['Q_opt_sequence']       # (N, D)
+            T_avgs  = mpc_result['T_pred_avgs']          # (N,)
+            h_mean  = mpc_result['h_reconstructed_mean'] # scalar
+            adj_err = mpc_result['adjoint_error']
+            adj_it  = mpc_result['adjoint_iterations']
+            h_full  = mpc_result['h_reconstructed']      # (M,)
+            T_fields = mpc_result.get('T_pred_fields')   # (N, M) or None
+        else:
+            Q_opt    = np.full((N, D), np.nan)
+            T_avgs   = np.full(N, np.nan)
+            h_mean   = np.nan
+            adj_err  = np.nan
+            adj_it   = np.nan
+            h_full   = np.full(1, np.nan)
+            T_fields = None
 
-                if mpc_result is not None:
-                    Q_opt = mpc_result['Q_opt_sequence']   # (N, D)
-                    T_pred = mpc_result['T_pred_avgs']     # (N,)
-                    h_mean = mpc_result['h_reconstructed_mean']  # scalar
-                else:
-                    Q_opt = np.full((N, D), np.nan)
-                    T_pred = np.full(N, np.nan)
-                    h_mean = np.nan
+        t = self.application.time
 
-                # Flatten: [time, Q[0,0]..Q[0,D-1], ..., Q[N-1,0]..Q[N-1,D-1], T[0]..T[N-1], h_mean]
-                mpc_row = [self.application.time]
-                for n in range(N):
-                    for d in range(D):
-                        mpc_row.append(float(Q_opt[n, d]) if Q_opt.shape[0] > n else np.nan)
-                for n in range(N):
-                    mpc_row.append(float(T_pred[n]) if len(T_pred) > n else np.nan)
+        # ----------------------------------------------------------------
+        # 3) mpc_control.csv  — Q sequence + predicted avg T + adjoint info
+        #    one row per control loop tick (carries last known MPC solve)
+        # ----------------------------------------------------------------
+        mpc_ctrl_file = sensor_file.replace('.csv', '_mpc_control.csv')
+        mpc_ctrl_headers = (
+            ['time']
+            + [f'Q_step{n}_jet{d}' for n in range(N) for d in range(D)]
+            + [f'T_pred_avg_step{n}' for n in range(N)]
+            + ['h_recon_mean', 'adjoint_error', 'adjoint_iters']
+        )
+        mpc_ctrl_row = (
+            [t]
+            + [float(Q_opt[n, d]) if n < Q_opt.shape[0] else np.nan for n in range(N) for d in range(D)]
+            + [float(T_avgs[n]) if n < len(T_avgs) else np.nan for n in range(N)]
+            + [h_mean, adj_err, adj_it]
+        )
+        self._write_row(mpc_ctrl_file, mpc_ctrl_headers, mpc_ctrl_row)
 
-                adjoint_error = mpc_result['adjoint_error'] if mpc_result else np.nan
-                adjoint_iters = mpc_result['adjoint_iterations'] if mpc_result else np.nan
-                mpc_row.append(h_mean)
-                mpc_row.append(adjoint_error)
-                mpc_row.append(adjoint_iters)
+        # ----------------------------------------------------------------
+        # 4) mpc_h.csv  — full reconstructed h map
+        #    one row per control loop tick (carries last known MPC solve)
+        # ----------------------------------------------------------------
+        h_flat = np.asarray(h_full).flatten()
+        mpc_h_file = sensor_file.replace('.csv', '_mpc_h.csv')
+        mpc_h_headers = ['time'] + [f'h_node{i}' for i in range(len(h_flat))]
+        self._write_row(mpc_h_file, mpc_h_headers, [t] + h_flat.tolist())
 
-                mpc_row_str = ','.join(f'{v:.6f}' for v in mpc_row) + '\n'
-                mpc_filename = self.application.UI.filename.replace('.csv', '_mpc.csv')
-                if not os.path.exists(mpc_filename):
-                    mpc_headers = ['time']
-                    for n in range(N):
-                        for d in range(D):
-                            mpc_headers.append(f'Q_n{n}_d{d}')
-                    for n in range(N):
-                        mpc_headers.append(f'T_pred_n{n}')
-                    mpc_headers.append('h_reconstructed_mean')
-                    mpc_headers.append('adjoint_error')
-                    mpc_headers.append('adjoint_iterations')
-                    with open(mpc_filename, 'w') as file:
-                        file.write(','.join(mpc_headers) + '\n')
-                with open(mpc_filename, 'a') as file:
-                    file.write(mpc_row_str)
-
-                # Write full h map (one row per MPC solve)
-                h_full = mpc_result['h_reconstructed'] if mpc_result else np.full(1, np.nan)
-                h_filename = self.application.UI.filename.replace('.csv', '_h.csv')
-                h_row = [self.application.time] + [f'{v:.6f}' for v in h_full.flatten()]
-                if not os.path.exists(h_filename):
-                    h_headers = ['time'] + [f'h_{i}' for i in range(len(h_full.flatten()))]
-                    with open(h_filename, 'w') as file:
-                        file.write(','.join(h_headers) + '\n')
-                with open(h_filename, 'a') as file:
-                    file.write(','.join(str(v) for v in h_row) + '\n')
+        # ----------------------------------------------------------------
+        # 5) mpc_Tfield.csv  — full predicted temperature field per step
+        #    written ONCE per MPC solve (not repeated every 500 ms tick)
+        # ----------------------------------------------------------------
+        if getattr(self, '_new_mpc_result_available', False) and T_fields is not None:
+            N_actual, M = T_fields.shape
+            mpc_tfield_file = sensor_file.replace('.csv', '_mpc_Tfield.csv')
+            mpc_tfield_headers = (
+                ['time']
+                + [f'T_step{n}_node{m}' for n in range(N_actual) for m in range(M)]
+            )
+            tfield_row = [t] + T_fields.flatten().tolist()
+            self._write_row(mpc_tfield_file, mpc_tfield_headers, tfield_row)
+            self._new_mpc_result_available = False
 
     def shutdown(self):
         """

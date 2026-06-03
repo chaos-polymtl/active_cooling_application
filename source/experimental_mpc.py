@@ -186,16 +186,22 @@ class ExperimentalMPCController:
         model.boundary.set_inlet_configuration(Q)
     
     def simulate_trajectory(self, model, Q_sequence, face_id, target_temperature):
-        model = copy.deepcopy(model)
-        T_tops = {}
+        # Save only the mutable state that changes during a forward roll-out.
+        # Avoiding deepcopy removes the cost of copying the NN surrogate model
+        # (and the sparse matrix / params object) on every cost/gradient evaluation.
+        T_saved    = model.T.copy()
+        time_saved = (model.time_manager.current_time, model.time_manager.current_step)
 
+        T_tops = {}
         for step, Q in enumerate(Q_sequence):
             model.boundary.set_inlet_configuration(Q)
             model.time_manager.update_time()
             model.solve()
+            T_tops[step] = model.get_temperature_face(face_id).copy()
 
-            T_face = model.get_temperature_face(face_id)
-            T_tops[step] = T_face.copy()
+        # Restore state so the model can be reused by the next evaluation
+        model.T = T_saved
+        model.time_manager.current_time, model.time_manager.current_step = time_saved
 
         return T_tops
     
@@ -223,12 +229,11 @@ class ExperimentalMPCController:
     
     def compute_gradient_over_horizon(self, model, Q_sequence, face_id, target_temperature, epsilon=0.1):
         """
-        Compute the gradient of the cost function with respect to each Q_t,i using forward differences.
-        Output shape: (mpc_prediction_horizon, 5)
+        Compute the gradient of the cost function with respect to each Q_t,i using central differences.
+        Output shape: (mpc_prediction_horizon, D)
         """
         N, D = Q_sequence.shape
         grad = np.zeros_like(Q_sequence)
-        base_cost = self.evaluate_cost(model, Q_sequence, face_id, target_temperature)
 
         for t in range(N):
             if t >= self.mpc_control_horizon:
